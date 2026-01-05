@@ -1,0 +1,199 @@
+{
+  "project_name": "LiverGuard CDSS",
+  "description": "TCGA-LIHC \uae30\ubc18 HCC \uba40\ud2f0\ubaa8\ub2ec \uc608\uce21 \uc2dc\uc2a4\ud15c (Leakage-Free, Reviewer-Safe)",
+  "data": {
+    "clinical": {
+      "file": "clinical_matched_filtered_v2.csv",
+      "id_column": "PATIENT_ID",
+      "n_samples": 72
+    },
+    "mrna": {
+      "file": "final_X_ssgsea.csv",
+      "type": "ssGSEA pathway scores",
+      "n_pathways": 20,
+      "n_samples": 371
+    },
+    "ct": {
+      "file": "10_all_features.pkl",
+      "backbone": "ResNet10",
+      "n_features": 512,
+      "n_samples": 72
+    },
+    "clinical_features": [
+      "AGE",
+      "SEX",
+      "AFP_AT_PROCUREMENT",
+      "SERUM_ALBUMIN_PRERESECTION",
+      "BILIRUBIN_TOTAL",
+      "PROTHROMBIN_TIME_INR_AT_PROCUREMENT",
+      "PLATELET_COUNT_PRERESECTION",
+      "CREATININE_LEVEL_PRERESECTION",
+      "VASCULAR_INVASION",
+      "GRADE",
+      "ISHAK_FIBROSIS_SCORE"
+    ],
+    "categorical_mappings": {
+      "SEX": {
+        "Male": 1,
+        "Female": 0
+      },
+      "VASCULAR_INVASION": {
+        "Macro": 2,
+        "Micro": 1,
+        "None": 0
+      },
+      "GRADE": {
+        "G1": 1,
+        "G2": 2,
+        "G3": 3,
+        "G4": 4
+      },
+      "ISHAK_FIBROSIS_SCORE": {
+        "0 - No Fibrosis": 0,
+        "1,2 - Portal Fibrosis": 1,
+        "3,4 - Fibrous Speta": 2,
+        "5 - Nodular Formation and Incomplete Cirrhosis": 3,
+        "6 - Established Cirrhosis": 4
+      }
+    },
+    "stage_mapping": {
+      "Stage I": 0,
+      "Stage II": 1,
+      "Stage III": 2,
+      "Stage IIIA": 2,
+      "Stage IIIB": 2,
+      "Stage IIIC": 2,
+      "Stage IV": 2,
+      "Stage IVA": 2,
+      "Stage IVB": 2
+    }
+  },
+  "task1": {
+    "name": "Stage Prediction",
+    "type": "multiclass_classification",
+    "target": "AJCC_STAGE",
+    "classes": [
+      "Stage I",
+      "Stage II",
+      "Stage III+"
+    ],
+    "inputs": [
+      "clinical",
+      "ct"
+    ],
+    "note": "mRNA excluded (pre-surgery prediction)",
+    "cv_strategy": "StratifiedKFold",
+    "n_splits": 5,
+    "random_seed": 42,
+    "model": {
+      "type": "XGBoost",
+      "n_estimators": 100,
+      "max_depth": 4,
+      "learning_rate": 0.1,
+      "use_sample_weight": true
+    },
+    "preprocessing": {
+      "clinical_imputer": "median",
+      "clinical_scaler": "standard",
+      "ct_pca_components": 20
+    },
+    "expected_performance": {
+      "f1_macro": 0.4,
+      "note": "5-Fold CV"
+    }
+  },
+  "task2": {
+    "name": "Early Relapse Prediction",
+    "type": "binary_classification",
+    "target": "EARLY_RELAPSE",
+    "relapse_threshold_months": 24,
+    "inputs": [
+      "clinical",
+      "mrna",
+      "ct"
+    ],
+    "cv_strategy": "StratifiedKFold",
+    "n_splits": 5,
+    "random_seed": 7,
+    "model": {
+      "type": "RandomForest",
+      "n_estimators": 100,
+      "max_depth": 5,
+      "class_weight": "balanced"
+    },
+    "preprocessing": {
+      "clinical_imputer": "median",
+      "clinical_scaler": "standard",
+      "mrna_scaler": "standard",
+      "ct_pca_components": 20
+    },
+    "threshold": {
+      "method": "youden_j",
+      "optimal_value": 0.4578,
+      "note": "Determined post-hoc from pooled CV predictions"
+    },
+    "expected_performance": {
+      "auc": 0.65,
+      "note": "5-Fold CV"
+    }
+  },
+  "task3": {
+    "name": "Overall Survival Prediction",
+    "type": "survival",
+    "time_column": "OS_MONTHS",
+    "event_column": "OS_STATUS",
+    "inputs": [
+      "clinical",
+      "mrna",
+      "ct"
+    ],
+    "cv_strategy": "LOOCV",
+    "bootstrap_iterations": 1000,
+    "model": {
+      "type": "CoxPH_Lasso",
+      "penalizer": 0.5,
+      "l1_ratio": 1.0
+    },
+    "preprocessing": {
+      "clinical_imputer": "median",
+      "clinical_scaler": "standard",
+      "mrna_scaler": "standard",
+      "ct_pca_components": 10
+    },
+    "risk_stratification": {
+      "method": "quantile",
+      "cutoffs_percentile": [
+        33,
+        66
+      ],
+      "note": "Data-driven, computed from training predictions"
+    },
+    "expected_performance": {
+      "c_index": 0.71,
+      "c_index_ci": [
+        0.6,
+        0.8
+      ],
+      "note": "LOOCV + Bootstrap 95% CI"
+    }
+  },
+  "input_validation": {
+    "expected_dims": {
+      "clinical": 11,
+      "mrna": 20,
+      "ct": 512
+    },
+    "strict_clinical_check": true
+  },
+  "security": {
+    "allow_external_threshold_override": false,
+    "allow_external_weight_override": false,
+    "note": "Threshold and weights loaded from config only"
+  },
+  "limitations": [
+    "Small cohort: n=72 patients with CT imaging",
+    "No external validation: Single-center (TCGA) retrospective data",
+    "Task 1 Stage II under-represented (16 samples)",
+    "For clinical decision support only, not diagnostic use"
+  ]
+}

@@ -1,0 +1,33 @@
+# Python 캐시 및 컴파일 파일
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 가상환경
+venv/
+env/
+.venv/
+.env/
+
+# BentoML 관련
+bento_bundle/
+bento_service:*.bento
+*.bento
+
+# IDE/편집기
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# 로그, 임시 파일
+*.log
+*.tmp
+*.swp
+
+# OS별 파일
+.DS_Store
+Thumbs.db
+
+# 환경 설정 파일 (비밀 키 포함 가능)
+.env
