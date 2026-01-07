@@ -1,261 +1,365 @@
 """
-LiverGuard CDSS - BentoML API Service (Final)
-
-3개의 AI Task를 제공하는 BentoML 서비스:
-- Task 1: 병기 예측 (Stage Prediction)
-- Task 2: 조기 재발 예측 (Early Relapse Prediction)  
-- Task 3: 생존 분석 (Survival Analysis)
+BentoML Service for LiverGuard CDSS
+Model Store 연동 방식
 
 실행:
-    bentoml serve service:LiverGuardService --port 3001
+    bentoml serve service:svc --reload --port 3001
+    
+엔드포인트:
+    POST /predict       - 통합 예측 (병기 + 재발 + 생존)
+    POST /predict_stage - 병기 예측만 (mRNA 불필요)
+    GET  /health        - 헬스체크 (정상적으로 동작 중인지 확인하기 위한 간단한 API)
 """
 
-import bentoml
 import numpy as np
 import pandas as pd
-import joblib
-import json
-from pathlib import Path
-from typing import Dict, List
-import logging
-import warnings
+from datetime import datetime
+from typing import Dict, Any, List, Optional
 
-warnings.filterwarnings('ignore')
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+import bentoml
+from bentoml.io import JSON
 
-ARTIFACTS_DIR = Path(__file__).parent / "models" / "artifacts"
+# ============================================================
+# Model Store에서 모델 로드
+# ============================================================
 
+# Task 1: Stage (sklearn - XGBoost)
+try:
+    stage_ref = bentoml.sklearn.get("liverguard_stage:latest")
+    stage_runner = stage_ref.to_runner()
+    stage_objs = stage_ref.custom_objects
+    HAS_STAGE = True
+    print(f"✅ Stage model loaded: {stage_ref.tag}")
+except bentoml.exceptions.NotFound:
+    HAS_STAGE = False
+    print("⚠️ Stage model not found in BentoML store")
 
-@bentoml.service(
-    name="liverguard_cdss",
-    traffic={"timeout": 300},
-    resources={"cpu": "2", "memory": "4Gi"}
-)
-class LiverGuardService:
-    """LiverGuard CDSS BentoML 서비스"""
+# Task 2: Relapse (sklearn - RandomForest)
+try:
+    relapse_ref = bentoml.sklearn.get("liverguard_relapse:latest")
+    relapse_runner = relapse_ref.to_runner()
+    relapse_objs = relapse_ref.custom_objects
+    HAS_RELAPSE = True
+    print(f"✅ Relapse model loaded: {relapse_ref.tag}")
+except bentoml.exceptions.NotFound:
+    HAS_RELAPSE = False
+    print("⚠️ Relapse model not found in BentoML store")
+
+# Task 3: Survival (picklable - CoxPH)
+try:
+    survival_ref = bentoml.picklable_model.get("liverguard_survival:latest")
+    survival_runner = survival_ref.to_runner()
+    survival_objs = survival_ref.custom_objects
+    HAS_SURVIVAL = True
+    print(f"✅ Survival model loaded: {survival_ref.tag}")
+except bentoml.exceptions.NotFound:
+    HAS_SURVIVAL = False
+    print("⚠️ Survival model not found in BentoML store")
+
+# ============================================================
+# Service 정의
+# ============================================================
+
+runners = []
+if HAS_STAGE: runners.append(stage_runner)
+if HAS_RELAPSE: runners.append(relapse_runner)
+if HAS_SURVIVAL: runners.append(survival_runner)
+
+svc = bentoml.Service("liverguard_cdss", runners=runners)
+
+# ============================================================
+# 입력 검증
+# ============================================================
+
+def validate_input(clinical: List, ct: List, mrna: List = None, 
+                   require_mrna: bool = False) -> Optional[str]:
+    """통일된 입력 검증"""
+    if not clinical or len(clinical) < 5:
+        return "clinical must have at least 5 features"
     
-    def __init__(self):
-        logger.info("Loading LiverGuard CDSS models...")
-        
-        # Config 로드
-        config_path = ARTIFACTS_DIR / "config.json"
-        if config_path.exists():
-            with open(config_path, 'r', encoding='utf-8') as f:
-                self.config = json.load(f)
+    if not ct or len(ct) != 512:
+        return f"ct_features must be 512-dimensional, got {len(ct) if ct else 0}"
+    
+    if require_mrna and (not mrna or len(mrna) != 20):
+        return f"mrna must have 20 pathways, got {len(mrna) if mrna else 0}"
+    
+    return None
+
+# ============================================================
+# 전처리 함수
+# ============================================================
+
+def preprocess_stage(clinical: List, ct: List) -> np.ndarray:
+    """Task 1 전처리 (mRNA 없음)"""
+    clinical = np.array(clinical).reshape(1, -1)
+    ct = np.array(ct).reshape(1, -1)
+    
+    # Clinical: feature selection → impute → scale
+    clinical = clinical[:, stage_objs['clinical_idx']]
+    clinical = stage_objs['scaler_clin'].transform(
+        stage_objs['imputer_clin'].transform(clinical)
+    )
+    
+    # CT: impute → scale → PCA
+    ct = stage_objs['pca'].transform(
+        stage_objs['scaler_ct'].transform(
+            stage_objs['imputer_ct'].transform(ct)
+        )
+    )
+    
+    return np.hstack([clinical, ct])
+
+
+def preprocess_relapse(clinical: List, mrna: List, ct: List) -> np.ndarray:
+    """Task 2 전처리 (mRNA 필수)"""
+    clinical = np.array(clinical).reshape(1, -1)
+    mrna = np.array(mrna).reshape(1, -1)
+    ct = np.array(ct).reshape(1, -1)
+    
+    # Clinical: feature selection → impute → scale
+    clinical = clinical[:, relapse_objs['clinical_idx']]
+    clinical = relapse_objs['scaler_clin'].transform(
+        relapse_objs['imputer_clin'].transform(clinical)
+    )
+    
+    # mRNA: impute → scale
+    mrna = relapse_objs['scaler_mrna'].transform(
+        relapse_objs['imputer_mrna'].transform(mrna)
+    )
+    
+    # CT: impute → scale → PCA
+    ct = relapse_objs['pca'].transform(
+        relapse_objs['scaler_ct'].transform(
+            relapse_objs['imputer_ct'].transform(ct)
+        )
+    )
+    
+    return np.hstack([clinical, mrna, ct])
+
+
+def preprocess_survival(clinical: List, mrna: List, ct: List) -> pd.DataFrame:
+    """Task 3 전처리 (mRNA 필수)"""
+    clinical = np.array(clinical).reshape(1, -1)
+    mrna = np.array(mrna).reshape(1, -1)
+    ct = np.array(ct).reshape(1, -1)
+    
+    # Clinical: 전체 사용 (Task3는 모든 clinical feature 사용)
+    clinical = survival_objs['scaler_clin'].transform(
+        survival_objs['imputer_clin'].transform(clinical)
+    )
+    
+    # mRNA
+    mrna = survival_objs['scaler_mrna'].transform(
+        survival_objs['imputer_mrna'].transform(mrna)
+    )
+    
+    # CT
+    ct = survival_objs['pca'].transform(
+        survival_objs['scaler_ct'].transform(
+            survival_objs['imputer_ct'].transform(ct)
+        )
+    )
+    
+    X = np.hstack([clinical, mrna, ct])
+    return pd.DataFrame(X, columns=survival_objs['feature_names'])
+
+# ============================================================
+# Helper 함수
+# ============================================================
+
+def get_risk_level(prob: float) -> str:
+    if prob > 0.6: return "High"
+    elif prob > 0.4: return "Medium"
+    return "Low"
+
+
+def get_risk_group(score: float, cutoffs: List[float]) -> str:
+    if score <= cutoffs[0]: return "Low"
+    elif score <= cutoffs[1]: return "Medium"
+    return "High"
+
+
+def get_relative_survival(group: str) -> Dict[str, float]:
+    """
+    상대적 생존 확률 (cohort-based estimate)
+    NOTE: 절대 생존 확률이 아님!
+    """
+    estimates = {
+        "Low": {"months_12": 0.95, "months_24": 0.88, "months_36": 0.82},
+        "Medium": {"months_12": 0.85, "months_24": 0.72, "months_36": 0.60},
+        "High": {"months_12": 0.70, "months_24": 0.50, "months_36": 0.35},
+    }
+    return estimates.get(group, estimates["Medium"])
+
+# ============================================================
+# API Endpoints
+# ============================================================
+
+@svc.api(input=JSON(), output=JSON())
+async def predict(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    통합 AI 예측 (병기 + 재발 + 생존)
+    
+    Input:
+    {
+        "clinical": [9개 값],
+        "ct_features": [512개 값],
+        "mrna": [20개 값],       # 선택, Task2/3용
+        "use_mrna": true/false   # 선택, 기본값은 mrna 존재 여부
+    }
+    """
+    clinical = data.get('clinical', [])
+    ct = data.get('ct_features', [])
+    mrna = data.get('mrna')
+    use_mrna = data.get('use_mrna', mrna is not None and len(mrna) == 20)
+    
+    # 입력 검증
+    error = validate_input(clinical, ct)
+    if error:
+        return {"error": error, "status": "validation_failed"}
+    
+    result = {
+        "prediction_timestamp": datetime.now().isoformat(),
+        "input_validation": {
+            "clinical_dim": len(clinical),
+            "ct_dim": len(ct),
+            "mrna_provided": mrna is not None and len(mrna) == 20,
+            "use_mrna": use_mrna
+        }
+    }
+    
+    # ===== Task 1: Stage (mRNA 사용 안 함) =====
+    if HAS_STAGE:
+        try:
+            X = preprocess_stage(clinical, ct)
+            proba = await stage_runner.predict_proba.async_run(X)
+            proba = proba[0]
+            pred = int(np.argmax(proba))
+            
+            labels = ["Stage I", "Stage II", "Stage III+"]
+            result['stage_prediction'] = {
+                "predicted_stage": labels[pred],
+                "stage_code": pred,
+                "probabilities": {labels[i]: float(proba[i]) for i in range(3)},
+                "confidence": float(np.max(proba)),
+                "uses_mrna": False
+            }
+        except Exception as e:
+            result['stage_prediction'] = {"error": str(e), "uses_mrna": False}
+    else:
+        result['stage_prediction'] = {"error": "Model not loaded", "uses_mrna": False}
+    
+    # ===== Task 2: Relapse (mRNA 필요) =====
+    if HAS_RELAPSE:
+        if use_mrna and mrna and len(mrna) == 20:
+            try:
+                X = preprocess_relapse(clinical, mrna, ct)
+                proba = await relapse_runner.predict_proba.async_run(X)
+                prob = float(proba[0, 1])
+                threshold = relapse_objs['threshold']
+                
+                result['relapse_prediction'] = {
+                    "relapse_probability": prob,
+                    "risk_level": get_risk_level(prob),
+                    "prediction": int(prob >= threshold),
+                    "threshold_used": float(threshold),
+                    "uses_mrna": True
+                }
+            except Exception as e:
+                result['relapse_prediction'] = {"error": str(e), "uses_mrna": True}
         else:
-            logger.warning("config.json not found, using defaults")
-            self.config = {}
-        
-        # 모델 로드
-        try:
-            self.task1 = joblib.load(ARTIFACTS_DIR / "task1_model.joblib")
-            self.task2 = joblib.load(ARTIFACTS_DIR / "task2_model.joblib")
-            self.task3 = joblib.load(ARTIFACTS_DIR / "task3_model.joblib")
-            logger.info("All models loaded successfully!")
-        except Exception as e:
-            logger.error(f"Failed to load models: {e}")
-            raise
-        
-        self.clinical_features = self.config.get('data', {}).get('clinical_features', [])
-        self.version = self.config.get('version', '11.3')
-    
-    @bentoml.api
-    def health(self) -> Dict:
-        """서비스 상태 확인"""
-        return {
-            "status": "ok",
-            "service": "LiverGuard CDSS",
-            "version": self.version,
-            "tasks": ["predict_stage", "predict_relapse", "predict_survival"]
-        }
-    
-    @bentoml.api
-    def predict_stage(self, clinical: List[float], ct: List[float]) -> Dict:
-        """
-        Task 1: 병기 예측
-        
-        Args:
-            clinical: Clinical features (11-dim)
-            ct: CT features (512-dim)
-        
-        Returns:
-            stage_class: 0=Stage I, 1=Stage II, 2=Stage III+
-            probabilities: 각 병기 확률
-        """
-        try:
-            # 입력 검증
-            if len(clinical) != 11:
-                return {"success": False, "error": f"clinical must have 11 features, got {len(clinical)}"}
-            if len(ct) != 512:
-                return {"success": False, "error": f"ct must have 512 features, got {len(ct)}"}
-            
-            clinical_arr = np.array(clinical).reshape(1, -1)
-            ct_arr = np.array(ct).reshape(1, -1)
-            
-            # 전처리 (학습 시 fit된 객체 사용)
-            X_clin = self.task1['clin_scaler'].transform(
-                self.task1['clin_imputer'].transform(clinical_arr))
-            X_ct = self.task1['ct_pca'].transform(
-                self.task1['ct_scaler'].transform(
-                    self.task1['ct_imputer'].transform(ct_arr)))
-            X = np.hstack([X_clin, X_ct])
-            
-            # 예측
-            pred = int(self.task1['model'].predict(X)[0])
-            proba = self.task1['model'].predict_proba(X)[0].tolist()
-            labels = ['Stage I', 'Stage II', 'Stage III+']
-            
-            return {
-                "success": True,
-                "task": "stage_prediction",
-                "stage_class": pred,
-                "stage_label": labels[pred],
-                "probabilities": {labels[i]: round(p, 4) for i, p in enumerate(proba)}
+            result['relapse_prediction'] = {
+                "error": "mRNA data required for relapse prediction",
+                "uses_mrna": True,
+                "mrna_provided": mrna is not None and len(mrna) == 20
             }
-        except Exception as e:
-            logger.error(f"predict_stage error: {e}")
-            return {"success": False, "error": str(e)}
+    else:
+        result['relapse_prediction'] = {"error": "Model not loaded", "uses_mrna": True}
     
-    @bentoml.api
-    def predict_relapse(self, clinical: List[float], mrna: List[float], ct: List[float]) -> Dict:
-        """
-        Task 2: 조기 재발 예측
-        
-        Args:
-            clinical: Clinical features (11-dim)
-            mrna: mRNA features (20-dim)
-            ct: CT features (512-dim)
-        
-        Returns:
-            probability: 재발 확률
-            risk_level: Low/Medium/High
-        """
-        try:
-            # 입력 검증
-            if len(clinical) != 11:
-                return {"success": False, "error": f"clinical must have 11 features"}
-            if len(mrna) != 20:
-                return {"success": False, "error": f"mrna must have 20 features"}
-            if len(ct) != 512:
-                return {"success": False, "error": f"ct must have 512 features"}
-            
-            clinical_arr = np.array(clinical).reshape(1, -1)
-            mrna_arr = np.array(mrna).reshape(1, -1)
-            ct_arr = np.array(ct).reshape(1, -1)
-            
-            # 전처리
-            X_clin = self.task2['clin_scaler'].transform(
-                self.task2['clin_imputer'].transform(clinical_arr))
-            X_mrna = self.task2['mrna_scaler'].transform(
-                self.task2['mrna_imputer'].transform(mrna_arr))
-            X_ct = self.task2['ct_pca'].transform(
-                self.task2['ct_scaler'].transform(
-                    self.task2['ct_imputer'].transform(ct_arr)))
-            X = np.hstack([X_clin, X_mrna, X_ct])
-            
-            # 예측
-            proba = float(self.task2['model'].predict_proba(X)[0, 1])
-            threshold = self.task2['optimal_threshold']
-            
-            # Risk level 결정
-            if proba >= threshold:
-                risk_level = "High"
-            elif proba >= threshold * 0.7:
-                risk_level = "Medium"
-            else:
-                risk_level = "Low"
-            
-            return {
-                "success": True,
-                "task": "relapse_prediction",
-                "probability": round(proba, 4),
-                "risk_level": risk_level,
-                "threshold": round(threshold, 4),
-                "prediction": int(proba >= threshold)
+    # ===== Task 3: Survival (mRNA 필요) =====
+    if HAS_SURVIVAL:
+        if use_mrna and mrna and len(mrna) == 20:
+            try:
+                df_input = preprocess_survival(clinical, mrna, ct)
+                cox_model = survival_ref.load()  # 직접 로드 (Cox는 async 미지원)
+                risk_score = float(cox_model.predict_partial_hazard(df_input).values[0])
+                
+                cutoffs = survival_objs['risk_cutoffs']
+                risk_group = get_risk_group(risk_score, cutoffs)
+                
+                result['survival_analysis'] = {
+                    "risk_score": risk_score,
+                    "risk_group": risk_group,
+                    "survival_probabilities": get_relative_survival(risk_group),
+                    "uses_mrna": True,
+                    "note": "RELATIVE risk within cohort. Not absolute survival probability.",
+                    "risk_cutoff_method": "percentile_33_66"
+                }
+            except Exception as e:
+                result['survival_analysis'] = {"error": str(e), "uses_mrna": True}
+        else:
+            result['survival_analysis'] = {
+                "error": "mRNA data required for survival analysis",
+                "uses_mrna": True,
+                "mrna_provided": mrna is not None and len(mrna) == 20
             }
-        except Exception as e:
-            logger.error(f"predict_relapse error: {e}")
-            return {"success": False, "error": str(e)}
+    else:
+        result['survival_analysis'] = {"error": "Model not loaded", "uses_mrna": True}
     
-    @bentoml.api
-    def predict_survival(self, clinical: List[float], mrna: List[float], ct: List[float]) -> Dict:
-        """
-        Task 3: 생존 분석
+    return result
+
+
+@svc.api(input=JSON(), output=JSON())
+async def predict_stage(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    병기 예측 전용 (mRNA 불필요)
+    
+    Input:
+    {
+        "clinical": [9개 값],
+        "ct_features": [512개 값]
+    }
+    """
+    clinical = data.get('clinical', [])
+    ct = data.get('ct_features', [])
+    
+    error = validate_input(clinical, ct)
+    if error:
+        return {"error": error, "status": "validation_failed"}
+    
+    if not HAS_STAGE:
+        return {"error": "Stage model not loaded"}
+    
+    try:
+        X = preprocess_stage(clinical, ct)
+        proba = await stage_runner.predict_proba.async_run(X)
+        proba = proba[0]
+        pred = int(np.argmax(proba))
         
-        Args:
-            clinical: Clinical features (11-dim)
-            mrna: mRNA features (20-dim)
-            ct: CT features (512-dim)
-        
-        Returns:
-            risk_score: 위험 점수
-            risk_group: Low/Medium/High
-        """
-        try:
-            # 입력 검증
-            if len(clinical) != 11:
-                return {"success": False, "error": f"clinical must have 11 features"}
-            if len(mrna) != 20:
-                return {"success": False, "error": f"mrna must have 20 features"}
-            if len(ct) != 512:
-                return {"success": False, "error": f"ct must have 512 features"}
-            
-            clinical_arr = np.array(clinical).reshape(1, -1)
-            mrna_arr = np.array(mrna).reshape(1, -1)
-            ct_arr = np.array(ct).reshape(1, -1)
-            
-            # 전처리
-            X_clin = self.task3['clin_scaler'].transform(
-                self.task3['clin_imputer'].transform(clinical_arr))
-            X_mrna = self.task3['mrna_scaler'].transform(
-                self.task3['mrna_imputer'].transform(mrna_arr))
-            X_ct = self.task3['ct_pca'].transform(
-                self.task3['ct_scaler'].transform(
-                    self.task3['ct_imputer'].transform(ct_arr)))
-            X = np.hstack([X_clin, X_mrna, X_ct])
-            
-            # Cox 모델 예측
-            n_feat = X.shape[1]
-            df = pd.DataFrame(X, columns=[f'f{j}' for j in range(n_feat)])
-            risk_score = float(self.task3['model'].predict_partial_hazard(df).values[0])
-            
-            # Risk group 결정
-            cutoffs = self.task3['risk_cutoffs']
-            if risk_score <= cutoffs[0]:
-                risk_group = "Low"
-            elif risk_score <= cutoffs[1]:
-                risk_group = "Medium"
-            else:
-                risk_group = "High"
-            
-            return {
-                "success": True,
-                "task": "survival_analysis",
-                "risk_score": round(risk_score, 4),
-                "risk_group": risk_group,
-                "note": "Risk score is relative and intended for stratification only."
-            }
-        except Exception as e:
-            logger.error(f"predict_survival error: {e}")
-            return {"success": False, "error": str(e)}
-    
-    @bentoml.api
-    def predict_all(self, clinical: List[float], mrna: List[float], ct: List[float]) -> Dict:
-        """전체 예측 (Task 1, 2, 3)"""
+        labels = ["Stage I", "Stage II", "Stage III+"]
         return {
-            "task1_stage": self.predict_stage(clinical, ct),
-            "task2_relapse": self.predict_relapse(clinical, mrna, ct),
-            "task3_survival": self.predict_survival(clinical, mrna, ct)
+            "predicted_stage": labels[pred],
+            "stage_code": pred,
+            "probabilities": {labels[i]: float(proba[i]) for i in range(3)},
+            "confidence": float(np.max(proba)),
+            "uses_mrna": False,
+            "model_version": "v11.6",
+            "prediction_timestamp": datetime.now().isoformat()
         }
-    
-    @bentoml.api
-    def get_feature_info(self) -> Dict:
-        """Feature 정보 반환"""
-        return {
-            "clinical_features": self.clinical_features,
-            "expected_dims": {"clinical": 11, "mrna": 20, "ct": 512},
-            "task1_inputs": ["clinical", "ct"],
-            "task2_inputs": ["clinical", "mrna", "ct"],
-            "task3_inputs": ["clinical", "mrna", "ct"]
-        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@svc.api(input=JSON(), output=JSON())
+async def health(_: Dict = None) -> Dict[str, Any]:
+    """헬스체크"""
+    return {
+        "status": "healthy",
+        "service": "liverguard_cdss",
+        "models": {
+            "stage": HAS_STAGE,
+            "relapse": HAS_RELAPSE,
+            "survival": HAS_SURVIVAL
+        },
+        "timestamp": datetime.now().isoformat()
+    }

@@ -1,199 +1,150 @@
 {
-  "project_name": "LiverGuard CDSS",
-  "description": "TCGA-LIHC \uae30\ubc18 HCC \uba40\ud2f0\ubaa8\ub2ec \uc608\uce21 \uc2dc\uc2a4\ud15c (Leakage-Free, Reviewer-Safe)",
-  "data": {
-    "clinical": {
-      "file": "clinical_matched_filtered_v2.csv",
-      "id_column": "PATIENT_ID",
-      "n_samples": 72
-    },
-    "mrna": {
-      "file": "final_X_ssgsea.csv",
-      "type": "ssGSEA pathway scores",
-      "n_pathways": 20,
-      "n_samples": 371
-    },
-    "ct": {
-      "file": "10_all_features.pkl",
-      "backbone": "ResNet10",
-      "n_features": 512,
-      "n_samples": 72
-    },
-    "clinical_features": [
-      "AGE",
-      "SEX",
-      "AFP_AT_PROCUREMENT",
-      "SERUM_ALBUMIN_PRERESECTION",
-      "BILIRUBIN_TOTAL",
-      "PROTHROMBIN_TIME_INR_AT_PROCUREMENT",
-      "PLATELET_COUNT_PRERESECTION",
-      "CREATININE_LEVEL_PRERESECTION",
-      "VASCULAR_INVASION",
-      "GRADE",
-      "ISHAK_FIBROSIS_SCORE"
-    ],
-    "categorical_mappings": {
-      "SEX": {
-        "Male": 1,
-        "Female": 0
-      },
-      "VASCULAR_INVASION": {
-        "Macro": 2,
-        "Micro": 1,
-        "None": 0
-      },
-      "GRADE": {
-        "G1": 1,
-        "G2": 2,
-        "G3": 3,
-        "G4": 4
-      },
-      "ISHAK_FIBROSIS_SCORE": {
-        "0 - No Fibrosis": 0,
-        "1,2 - Portal Fibrosis": 1,
-        "3,4 - Fibrous Speta": 2,
-        "5 - Nodular Formation and Incomplete Cirrhosis": 3,
-        "6 - Established Cirrhosis": 4
-      }
-    },
-    "stage_mapping": {
-      "Stage I": 0,
-      "Stage II": 1,
-      "Stage III": 2,
-      "Stage IIIA": 2,
-      "Stage IIIB": 2,
-      "Stage IIIC": 2,
-      "Stage IV": 2,
-      "Stage IVA": 2,
-      "Stage IVB": 2
-    }
-  },
-  "task1": {
-    "name": "Stage Prediction",
-    "type": "multiclass_classification",
-    "target": "AJCC_STAGE",
-    "classes": [
-      "Stage I",
-      "Stage II",
-      "Stage III+"
-    ],
-    "inputs": [
-      "clinical",
-      "ct"
-    ],
-    "note": "mRNA excluded (pre-surgery prediction)",
-    "cv_strategy": "StratifiedKFold",
-    "n_splits": 5,
+  "config": {
     "random_seed": 42,
-    "model": {
-      "type": "XGBoost",
+    "task1": {
+      "model": "XGBoost",
       "n_estimators": 100,
       "max_depth": 4,
       "learning_rate": 0.1,
-      "use_sample_weight": true
+      "ct_pca": 20,
+      "n_splits": 5,
+      "seed": 42,
+      "uses_mrna": false
     },
-    "preprocessing": {
-      "clinical_imputer": "median",
-      "clinical_scaler": "standard",
-      "ct_pca_components": 20
-    },
-    "expected_performance": {
-      "f1_macro": 0.4,
-      "note": "5-Fold CV"
-    }
-  },
-  "task2": {
-    "name": "Early Relapse Prediction",
-    "type": "binary_classification",
-    "target": "EARLY_RELAPSE",
-    "relapse_threshold_months": 24,
-    "inputs": [
-      "clinical",
-      "mrna",
-      "ct"
-    ],
-    "cv_strategy": "StratifiedKFold",
-    "n_splits": 5,
-    "random_seed": 7,
-    "model": {
-      "type": "RandomForest",
+    "task2": {
+      "model": "RandomForest",
       "n_estimators": 100,
       "max_depth": 5,
-      "class_weight": "balanced"
+      "ct_pca": 20,
+      "n_splits": 5,
+      "seed": 7,
+      "relapse_months": 24,
+      "uses_mrna": true
     },
-    "preprocessing": {
-      "clinical_imputer": "median",
-      "clinical_scaler": "standard",
-      "mrna_scaler": "standard",
-      "ct_pca_components": 20
-    },
-    "threshold": {
-      "method": "youden_j",
-      "optimal_value": 0.4578,
-      "note": "Determined post-hoc from pooled CV predictions"
-    },
-    "expected_performance": {
-      "auc": 0.65,
-      "note": "5-Fold CV"
-    }
-  },
-  "task3": {
-    "name": "Overall Survival Prediction",
-    "type": "survival",
-    "time_column": "OS_MONTHS",
-    "event_column": "OS_STATUS",
-    "inputs": [
-      "clinical",
-      "mrna",
-      "ct"
-    ],
-    "cv_strategy": "LOOCV",
-    "bootstrap_iterations": 1000,
-    "model": {
-      "type": "CoxPH_Lasso",
+    "task3": {
+      "model": "Lasso_Cox",
       "penalizer": 0.5,
-      "l1_ratio": 1.0
+      "l1_ratio": 1.0,
+      "ct_pca": 10,
+      "uses_mrna": true
     },
-    "preprocessing": {
-      "clinical_imputer": "median",
-      "clinical_scaler": "standard",
-      "mrna_scaler": "standard",
-      "ct_pca_components": 10
+    "feature_selection": {
+      "n_clinical": 5,
+      "n_mrna": 20,
+      "clinical_method": "f_classif",
+      "mrna_method": "none"
     },
-    "risk_stratification": {
-      "method": "quantile",
-      "cutoffs_percentile": [
-        33,
-        66
+    "data": {
+      "clinical_features": [
+        "AGE",
+        "SEX",
+        "GRADE",
+        "VASCULAR_INVASION",
+        "ISHAK_FIBROSIS_SCORE",
+        "AFP_AT_PROCUREMENT",
+        "SERUM_ALBUMIN_PRERESECTION",
+        "BILIRUBIN_TOTAL",
+        "PLATELET_COUNT_PRERESECTION"
       ],
-      "note": "Data-driven, computed from training predictions"
-    },
-    "expected_performance": {
-      "c_index": 0.71,
-      "c_index_ci": [
-        0.6,
-        0.8
-      ],
-      "note": "LOOCV + Bootstrap 95% CI"
+      "stage_mapping": {
+        "Stage I": 0,
+        "Stage II": 1,
+        "Stage III": 2,
+        "Stage IIIA": 2,
+        "Stage IIIB": 2,
+        "Stage IIIC": 2,
+        "Stage IV": 2,
+        "Stage IVA": 2,
+        "Stage IVB": 2
+      }
     }
   },
-  "input_validation": {
-    "expected_dims": {
-      "clinical": 11,
-      "mrna": 20,
-      "ct": 512
+  "results": {
+    "task1": {
+      "f1_macro": 0.3762370940993955,
+      "f1_std": 0.11357573109301163,
+      "f1_per_class": [
+        0.5373134328358209,
+        0.25806451612903225,
+        0.3333333333333333
+      ],
+      "accuracy": 0.4142857142857143,
+      "confusion_matrix": [
+        [
+          18,
+          7,
+          8
+        ],
+        [
+          6,
+          4,
+          6
+        ],
+        [
+          10,
+          4,
+          7
+        ]
+      ],
+      "fold_f1s": [
+        0.3444444444444444,
+        0.2169312169312169,
+        0.3849206349206349,
+        0.3116883116883117,
+        0.5622710622710623
+      ],
+      "n_samples": 70,
+      "selected_clinical": [
+        "GRADE",
+        "VASCULAR_INVASION",
+        "AFP_AT_PROCUREMENT",
+        "SERUM_ALBUMIN_PRERESECTION",
+        "PLATELET_COUNT_PRERESECTION"
+      ],
+      "uses_mrna": false
     },
-    "strict_clinical_check": true
-  },
-  "security": {
-    "allow_external_threshold_override": false,
-    "allow_external_weight_override": false,
-    "note": "Threshold and weights loaded from config only"
-  },
-  "limitations": [
-    "Small cohort: n=72 patients with CT imaging",
-    "No external validation: Single-center (TCGA) retrospective data",
-    "Task 1 Stage II under-represented (16 samples)",
-    "For clinical decision support only, not diagnostic use"
-  ]
+    "task2": {
+      "auc": 0.6833333333333333,
+      "auc_std": 0.04518822090591723,
+      "f1": 0.7714285714285715,
+      "precision": 0.675,
+      "recall": 0.9,
+      "optimal_threshold": 0.4192360088201228,
+      "threshold_note": "Derived from pooled CV predictions (Youden J)",
+      "fold_aucs": [
+        0.6944444444444444,
+        0.75,
+        0.6388888888888888,
+        0.7666666666666666,
+        0.7000000000000001
+      ],
+      "n_samples": 58,
+      "n_positive": 30,
+      "selected_clinical": [
+        "SEX",
+        "GRADE",
+        "VASCULAR_INVASION",
+        "ISHAK_FIBROSIS_SCORE",
+        "PLATELET_COUNT_PRERESECTION"
+      ],
+      "uses_mrna": true
+    },
+    "task3": {
+      "c_index": 0.7130013831258645,
+      "c_index_ci_lower": 0.5958560516908319,
+      "c_index_ci_upper": 0.8105264957880337,
+      "logrank_p": 0.0018982599194993536,
+      "risk_cutoffs": [
+        0.999999708006886,
+        1.0000002835320674
+      ],
+      "risk_cutoff_method": "percentile_33_66",
+      "n_samples": 72,
+      "n_valid": 72,
+      "n_failed": 0,
+      "n_events": 36,
+      "uses_mrna": true,
+      "note": "Relative risk within cohort; not absolute survival probability"
+    }
+  }
 }

@@ -1,0 +1,60 @@
+{
+  "timestamp": "2026-01-07T12:14:00.766658",
+  "data": {
+    "total_samples": 72,
+    "clinical_features": [
+      "AGE",
+      "SEX",
+      "GRADE",
+      "VASCULAR_INVASION",
+      "ISHAK_FIBROSIS_SCORE",
+      "AFP_AT_PROCUREMENT",
+      "SERUM_ALBUMIN_PRERESECTION",
+      "BILIRUBIN_TOTAL",
+      "PLATELET_COUNT_PRERESECTION"
+    ],
+    "mrna_pathways": [
+      "Myc Targets V1",
+      "G2-M Checkpoint",
+      "Glycolysis",
+      "Spermatogenesis",
+      "mTORC1 Signaling",
+      "E2F Targets",
+      "Unfolded Protein Response",
+      "Mitotic Spindle",
+      "Bile Acid Metabolism",
+      "PI3K/AKT/mTOR  Signaling",
+      "KRAS Signaling Dn",
+      "Myc Targets V2",
+      "UV Response Up",
+      "Xenobiotic Metabolism",
+      "Coagulation",
+      "Fatty Acid Metabolism",
+      "Adipogenesis",
+      "Reactive Oxygen Species Pathway",
+      "DNA Repair",
+      "Oxidative Phosphorylation"
+    ],
+    "ct_dimension": 512
+  },
+  "performance": {
+    "task1_stage": {
+      "f1_macro": 0.3762370940993955,
+      "uses_mrna": false
+    },
+    "task2_relapse": {
+      "auc": 0.6833333333333333,
+      "uses_mrna": true
+    },
+    "task3_survival": {
+      "c_index": 0.7130013831258645,
+      "uses_mrna": true,
+      "note": "Relative risk within cohort"
+    }
+  },
+  "model_files": [
+    "task1_model.joblib",
+    "task2_model.joblib",
+    "task3_model.joblib"
+  ]
+}

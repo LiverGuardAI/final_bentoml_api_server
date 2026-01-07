@@ -1,0 +1,88 @@
+{
+  "task1": {
+    "f1_macro": 0.3762370940993955,
+    "f1_std": 0.11357573109301163,
+    "f1_per_class": [
+      0.5373134328358209,
+      0.25806451612903225,
+      0.3333333333333333
+    ],
+    "accuracy": 0.4142857142857143,
+    "confusion_matrix": [
+      [
+        18,
+        7,
+        8
+      ],
+      [
+        6,
+        4,
+        6
+      ],
+      [
+        10,
+        4,
+        7
+      ]
+    ],
+    "fold_f1s": [
+      0.3444444444444444,
+      0.2169312169312169,
+      0.3849206349206349,
+      0.3116883116883117,
+      0.5622710622710623
+    ],
+    "n_samples": 70,
+    "selected_clinical": [
+      "GRADE",
+      "VASCULAR_INVASION",
+      "AFP_AT_PROCUREMENT",
+      "SERUM_ALBUMIN_PRERESECTION",
+      "PLATELET_COUNT_PRERESECTION"
+    ],
+    "uses_mrna": false
+  },
+  "task2": {
+    "auc": 0.6833333333333333,
+    "auc_std": 0.04518822090591723,
+    "f1": 0.7714285714285715,
+    "precision": 0.675,
+    "recall": 0.9,
+    "optimal_threshold": 0.4192360088201228,
+    "threshold_note": "Derived from pooled CV predictions (Youden J)",
+    "fold_aucs": [
+      0.6944444444444444,
+      0.75,
+      0.6388888888888888,
+      0.7666666666666666,
+      0.7000000000000001
+    ],
+    "n_samples": 58,
+    "n_positive": 30,
+    "selected_clinical": [
+      "SEX",
+      "GRADE",
+      "VASCULAR_INVASION",
+      "ISHAK_FIBROSIS_SCORE",
+      "PLATELET_COUNT_PRERESECTION"
+    ],
+    "uses_mrna": true
+  },
+  "task3": {
+    "c_index": 0.7130013831258645,
+    "c_index_ci_lower": 0.5958560516908319,
+    "c_index_ci_upper": 0.8105264957880337,
+    "logrank_p": 0.0018982599194993577,
+    "risk_cutoffs": [
+      0.9999997080069113,
+      1.0000002835321604
+    ],
+    "risk_cutoff_method": "percentile_33_66",
+    "n_samples": 72,
+    "n_valid": 72,
+    "n_failed": 0,
+    "n_events": 36,
+    "uses_mrna": true,
+    "note": "Relative risk within cohort; not absolute survival probability"
+  }
+}
