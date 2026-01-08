@@ -5,10 +5,16 @@ __pycache__/
 *.pyc
 
 # 가상환경
-venv/
+.env
+.envrc
+.venv
 env/
-.venv/
-.env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.env.local
+.env.prod
 
 # BentoML 관련
 bento_bundle/
