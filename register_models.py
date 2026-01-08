@@ -61,7 +61,6 @@ def register_models(artifacts_dir: str = "./artifacts"):
                 },
                 metadata={
                     "task": "stage_prediction",
-                    "version": "11.6",
                     "description": "HCC Stage Prediction (I/II/III+)",
                     "uses_mrna": False,
                     "input_dims": {"clinical": task1['n_clinical'], "ct_pca": task1['n_ct_pca']}
@@ -103,7 +102,6 @@ def register_models(artifacts_dir: str = "./artifacts"):
                 },
                 metadata={
                     "task": "relapse_prediction",
-                    "version": "11.6",
                     "description": "Early Relapse Prediction (24 months)",
                     "uses_mrna": True,
                     "threshold": task2['threshold'],
@@ -147,7 +145,6 @@ def register_models(artifacts_dir: str = "./artifacts"):
                 },
                 metadata={
                     "task": "survival_analysis",
-                    "version": "11.6",
                     "description": "Overall Survival Risk Prediction (Cox PH)",
                     "uses_mrna": True,
                     "risk_cutoff_method": "percentile_33_66",

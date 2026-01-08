@@ -17,18 +17,20 @@ final_deployment/
 │   └── requirements.txt
 │
 ├── django_ai_server/          # Django AI API
-│   ├── models.py
+│   ├── feature_mapping.py
 │   ├── serializers.py
 │   ├── views.py
 │   └── urls.py
 │
-└── react_components/          # React 컴포넌트
+└── react_frontend/            # React 컴포넌트
     └── prediction/
-        ├── predictionApi.ts
-        ├── PredictionResults.tsx
-        ├── FeatureHeatmap.tsx
         ├── FeatureTables.tsx
-        └── PredictionPage.tsx
+        └── PredictionResults.tsx
+    └── api/
+        └── PredictionApi.ts
+    └── pages/doctor/
+        └── AIResult.tsx
+
 ```
 
 ---
@@ -153,7 +155,7 @@ export default defineConfig({
 
 ---
 
-## 📊 모델 성능 (v11.6)
+## 📊 모델 성능
 
 | Task | Metric | Value |
 |------|--------|-------|
