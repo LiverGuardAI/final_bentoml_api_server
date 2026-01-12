@@ -158,10 +158,30 @@ def register_models(artifacts_dir: str = "./artifacts"):
             print(f"❌ Task 3 failed: {e}")
     else:
         print(f"⚠️ Task 3 model not found: {task3_path}")
+    # ===== Task 4: DDI Hybrid Engine (XGBoost) [NEW] =====
+    ddi_model_path = artifacts_path / "xgb_model_v5_optuna_cv.joblib"
+    if ddi_model_path.exists():
+        try:
+            # XGBoost 전용 저장 방식 사용
+            saved = bentoml.xgboost.save_model(
+                "ddi_v5_model",
+                joblib.load(ddi_model_path),
+                labels={"owner": "user", "version": "v5.5"},
+                metadata={
+                    "description": "Hybrid DDI Engine with MFDS DUR Filter",
+                    "task": "ddi_prediction"
+                }
+            )
+            print(f"✅ Task 4 (DDI): {saved.tag}")
+            success_count += 1
+        except Exception as e:
+            print(f"❌ Task 4 (DDI) failed: {e}")
+    else:
+        print(f"⚠️ Task 4 model not found: {ddi_model_path}")
     
     print()
     print("=" * 60)
-    print(f"Registration Complete: {success_count}/3 models")
+    print(f"Registration Complete: {success_count}/4 models")
     print("=" * 60)
     print()
     print("Next steps:")
@@ -169,7 +189,8 @@ def register_models(artifacts_dir: str = "./artifacts"):
     print("  2. Start service: bentoml serve service:svc --reload --port 3001")
     print("  3. Test: curl http://localhost:3001/health")
     
-    return success_count == 3
+    
+    return success_count == 4
 
 
 if __name__ == "__main__":

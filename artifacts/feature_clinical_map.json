@@ -1,0 +1,702 @@
+{
+    "f632": {
+        "mapped_bit": 1380,
+        "correlation": 0.49736779863764924,
+        "dominant_class": "3",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f750": {
+        "mapped_bit": 610,
+        "correlation": 0.3036394123431513,
+        "dominant_class": "89",
+        "clinical_meaning": "신장 배설 경로 상호작용 (Renal Clearance)",
+        "category": "Renal Competition"
+    },
+    "f116": {
+        "mapped_bit": 1380,
+        "correlation": 0.3817806573750186,
+        "dominant_class": "113",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f167": {
+        "mapped_bit": 1873,
+        "correlation": -0.5671283770619854,
+        "dominant_class": "20",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f475": {
+        "mapped_bit": 1380,
+        "correlation": 0.35975359187768713,
+        "dominant_class": "6",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f749": {
+        "mapped_bit": 1019,
+        "correlation": 0.3274858302241669,
+        "dominant_class": "113",
+        "clinical_meaning": "생체 이용률(Absorbtion) 관련 구조",
+        "category": "Bioavailability"
+    },
+    "f173": {
+        "mapped_bit": 1750,
+        "correlation": -0.28091551743123205,
+        "dominant_class": "99",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f665": {
+        "mapped_bit": 1921,
+        "correlation": -0.33202194342119307,
+        "dominant_class": "81",
+        "clinical_meaning": "신장 배설 경로 상호작용 (Renal Clearance)",
+        "category": "Renal Competition"
+    },
+    "f576": {
+        "mapped_bit": 1323,
+        "correlation": 0.27371142095842277,
+        "dominant_class": "5",
+        "clinical_meaning": "신장 배설 경로 상호작용 (Renal Clearance)",
+        "category": "Renal Competition"
+    },
+    "f303": {
+        "mapped_bit": 1750,
+        "correlation": -0.407459882731751,
+        "dominant_class": "74",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f495": {
+        "mapped_bit": 1088,
+        "correlation": -0.24862935223136898,
+        "dominant_class": "60",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f605": {
+        "mapped_bit": 1380,
+        "correlation": -0.39962817442019477,
+        "dominant_class": "87",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f84": {
+        "mapped_bit": 1750,
+        "correlation": 0.3876369061165009,
+        "dominant_class": "60",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f322": {
+        "mapped_bit": 1750,
+        "correlation": -0.44826867665630493,
+        "dominant_class": "3",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f69": {
+        "mapped_bit": 117,
+        "correlation": -0.25571282192031547,
+        "dominant_class": "17",
+        "clinical_meaning": "심혈관 전도(QT) 영향 가능성 (Potential QT Risk)",
+        "category": "QT Prolongation"
+    },
+    "f170": {
+        "mapped_bit": 1257,
+        "correlation": -0.3526235737041275,
+        "dominant_class": "104",
+        "clinical_meaning": "생체 이용률(Absorbtion) 관련 구조",
+        "category": "Bioavailability"
+    },
+    "f744": {
+        "mapped_bit": 1152,
+        "correlation": -0.3229524974682003,
+        "dominant_class": "63",
+        "clinical_meaning": "심혈관 전도(QT) 영향 가능성 (Potential QT Risk)",
+        "category": "QT Prolongation"
+    },
+    "f430": {
+        "mapped_bit": 650,
+        "correlation": 0.44604841017112773,
+        "dominant_class": "89",
+        "clinical_meaning": "생체 이용률(Absorbtion) 관련 구조",
+        "category": "Bioavailability"
+    },
+    "f690": {
+        "mapped_bit": 1380,
+        "correlation": -0.22744442469298123,
+        "dominant_class": "66",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f160": {
+        "mapped_bit": 1464,
+        "correlation": 0.2031841756350891,
+        "dominant_class": "104",
+        "clinical_meaning": "신장 배설 경로 상호작용 (Renal Clearance)",
+        "category": "Renal Competition"
+    },
+    "f600": {
+        "mapped_bit": 1873,
+        "correlation": 0.28095766606675565,
+        "dominant_class": "3",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f409": {
+        "mapped_bit": 1750,
+        "correlation": 0.31299929450906155,
+        "dominant_class": "5",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f532": {
+        "mapped_bit": 378,
+        "correlation": -0.29518627320089763,
+        "dominant_class": "113",
+        "clinical_meaning": "간 대사 효소(CYP) 억제 및 경합 (Metabolic Inhibition)",
+        "category": "Enzyme Inhibition"
+    },
+    "f499": {
+        "mapped_bit": 1873,
+        "correlation": -0.36768820435391325,
+        "dominant_class": "19",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f415": {
+        "mapped_bit": 1257,
+        "correlation": -0.25095555487107574,
+        "dominant_class": "41",
+        "clinical_meaning": "생체 이용률(Absorbtion) 관련 구조",
+        "category": "Bioavailability"
+    },
+    "f81": {
+        "mapped_bit": 1750,
+        "correlation": 0.5656827524529752,
+        "dominant_class": "2",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f645": {
+        "mapped_bit": 1171,
+        "correlation": 0.21998123774764736,
+        "dominant_class": "34",
+        "clinical_meaning": "심혈관 전도(QT) 영향 가능성 (Potential QT Risk)",
+        "category": "QT Prolongation"
+    },
+    "f428": {
+        "mapped_bit": 1750,
+        "correlation": -0.5315243599770594,
+        "dominant_class": "89",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f461": {
+        "mapped_bit": 1380,
+        "correlation": 0.25248423240114837,
+        "dominant_class": "89",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f586": {
+        "mapped_bit": 1019,
+        "correlation": 0.2601821755609187,
+        "dominant_class": "51",
+        "clinical_meaning": "생체 이용률(Absorbtion) 관련 구조",
+        "category": "Bioavailability"
+    },
+    "f764": {
+        "mapped_bit": 1921,
+        "correlation": -0.29347453042567195,
+        "dominant_class": "22",
+        "clinical_meaning": "신장 배설 경로 상호작용 (Renal Clearance)",
+        "category": "Renal Competition"
+    },
+    "f141": {
+        "mapped_bit": 926,
+        "correlation": -0.3861934411994662,
+        "dominant_class": "20",
+        "clinical_meaning": "생체 이용률(Absorbtion) 관련 구조",
+        "category": "Bioavailability"
+    },
+    "f95": {
+        "mapped_bit": 1464,
+        "correlation": 0.18343962820496773,
+        "dominant_class": "58",
+        "clinical_meaning": "신장 배설 경로 상호작용 (Renal Clearance)",
+        "category": "Renal Competition"
+    },
+    "f300": {
+        "mapped_bit": 1750,
+        "correlation": -0.3174011684716268,
+        "dominant_class": "58",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f297": {
+        "mapped_bit": 1380,
+        "correlation": 0.41156807457706635,
+        "dominant_class": "3",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f486": {
+        "mapped_bit": 378,
+        "correlation": 0.3343482737911523,
+        "dominant_class": "84",
+        "clinical_meaning": "간 대사 효소(CYP) 억제 및 경합 (Metabolic Inhibition)",
+        "category": "Enzyme Inhibition"
+    },
+    "f447": {
+        "mapped_bit": 1019,
+        "correlation": 0.2422907365424486,
+        "dominant_class": "70",
+        "clinical_meaning": "생체 이용률(Absorbtion) 관련 구조",
+        "category": "Bioavailability"
+    },
+    "f150": {
+        "mapped_bit": 378,
+        "correlation": -0.3587244560652479,
+        "dominant_class": "97",
+        "clinical_meaning": "간 대사 효소(CYP) 억제 및 경합 (Metabolic Inhibition)",
+        "category": "Enzyme Inhibition"
+    },
+    "f102": {
+        "mapped_bit": 378,
+        "correlation": 0.3343482737911523,
+        "dominant_class": "113",
+        "clinical_meaning": "간 대사 효소(CYP) 억제 및 경합 (Metabolic Inhibition)",
+        "category": "Enzyme Inhibition"
+    },
+    "f512": {
+        "mapped_bit": 610,
+        "correlation": 0.3565203072059736,
+        "dominant_class": "81",
+        "clinical_meaning": "신장 배설 경로 상호작용 (Renal Clearance)",
+        "category": "Renal Competition"
+    },
+    "f191": {
+        "mapped_bit": 1921,
+        "correlation": -0.28820840292898436,
+        "dominant_class": "109",
+        "clinical_meaning": "신장 배설 경로 상호작용 (Renal Clearance)",
+        "category": "Renal Competition"
+    },
+    "f707": {
+        "mapped_bit": 1380,
+        "correlation": 0.3673702552937967,
+        "dominant_class": "113",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f156": {
+        "mapped_bit": 1750,
+        "correlation": 0.35605334611464223,
+        "dominant_class": "25",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f356": {
+        "mapped_bit": 378,
+        "correlation": -0.2550296778843864,
+        "dominant_class": "102",
+        "clinical_meaning": "간 대사 효소(CYP) 억제 및 경합 (Metabolic Inhibition)",
+        "category": "Enzyme Inhibition"
+    },
+    "f291": {
+        "mapped_bit": 1,
+        "correlation": -0.22258561121662732,
+        "dominant_class": "91",
+        "clinical_meaning": "생체 이용률(Absorbtion) 관련 구조",
+        "category": "Bioavailability"
+    },
+    "f580": {
+        "mapped_bit": 1750,
+        "correlation": 0.554210704638787,
+        "dominant_class": "13",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f51": {
+        "mapped_bit": 1750,
+        "correlation": -0.31052935233004825,
+        "dominant_class": "102",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f730": {
+        "mapped_bit": 894,
+        "correlation": -0.2050688770593862,
+        "dominant_class": "89",
+        "clinical_meaning": "심혈관 전도(QT) 영향 가능성 (Potential QT Risk)",
+        "category": "QT Prolongation"
+    },
+    "f594": {
+        "mapped_bit": 1451,
+        "correlation": 0.234568747042361,
+        "dominant_class": "9",
+        "clinical_meaning": "심혈관 전도(QT) 영향 가능성 (Potential QT Risk)",
+        "category": "QT Prolongation"
+    },
+    "f112": {
+        "mapped_bit": 1911,
+        "correlation": -0.2451212840715637,
+        "dominant_class": "5",
+        "clinical_meaning": "생체 이용률(Absorbtion) 관련 구조",
+        "category": "Bioavailability"
+    },
+    "f207": {
+        "mapped_bit": 1564,
+        "correlation": 0.24358414808565054,
+        "dominant_class": "76",
+        "clinical_meaning": "생체 이용률(Absorbtion) 관련 구조",
+        "category": "Bioavailability"
+    },
+    "f114": {
+        "mapped_bit": 1921,
+        "correlation": 0.3880696637611716,
+        "dominant_class": "58",
+        "clinical_meaning": "신장 배설 경로 상호작용 (Renal Clearance)",
+        "category": "Renal Competition"
+    },
+    "f124": {
+        "mapped_bit": 1750,
+        "correlation": -0.26768356342686456,
+        "dominant_class": "72",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f171": {
+        "mapped_bit": 1750,
+        "correlation": -0.30957125796853846,
+        "dominant_class": "49",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f372": {
+        "mapped_bit": 650,
+        "correlation": -0.6156554495484458,
+        "dominant_class": "43",
+        "clinical_meaning": "생체 이용률(Absorbtion) 관련 구조",
+        "category": "Bioavailability"
+    },
+    "f740": {
+        "mapped_bit": 378,
+        "correlation": -0.2550296778843864,
+        "dominant_class": "13",
+        "clinical_meaning": "간 대사 효소(CYP) 억제 및 경합 (Metabolic Inhibition)",
+        "category": "Enzyme Inhibition"
+    },
+    "f463": {
+        "mapped_bit": 1750,
+        "correlation": -0.5359315991154651,
+        "dominant_class": "27",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f42": {
+        "mapped_bit": 1750,
+        "correlation": -0.360359572662298,
+        "dominant_class": "82",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f626": {
+        "mapped_bit": 519,
+        "correlation": -0.33300502564490536,
+        "dominant_class": "21",
+        "clinical_meaning": "간 대사 효소(CYP) 억제 및 경합 (Metabolic Inhibition)",
+        "category": "Enzyme Inhibition"
+    },
+    "f129": {
+        "mapped_bit": 378,
+        "correlation": 0.40248302716537976,
+        "dominant_class": "95",
+        "clinical_meaning": "간 대사 효소(CYP) 억제 및 경합 (Metabolic Inhibition)",
+        "category": "Enzyme Inhibition"
+    },
+    "f727": {
+        "mapped_bit": 1257,
+        "correlation": -0.3094890658006016,
+        "dominant_class": "92",
+        "clinical_meaning": "생체 이용률(Absorbtion) 관련 구조",
+        "category": "Bioavailability"
+    },
+    "f482": {
+        "mapped_bit": 1750,
+        "correlation": 0.2922712611385119,
+        "dominant_class": "91",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f662": {
+        "mapped_bit": 610,
+        "correlation": -0.21764237104347522,
+        "dominant_class": "5",
+        "clinical_meaning": "신장 배설 경로 상호작용 (Renal Clearance)",
+        "category": "Renal Competition"
+    },
+    "f227": {
+        "mapped_bit": 1171,
+        "correlation": 0.26852479975529997,
+        "dominant_class": "2",
+        "clinical_meaning": "심혈관 전도(QT) 영향 가능성 (Potential QT Risk)",
+        "category": "QT Prolongation"
+    },
+    "f533": {
+        "mapped_bit": 1257,
+        "correlation": 0.2813080308894897,
+        "dominant_class": "61",
+        "clinical_meaning": "생체 이용률(Absorbtion) 관련 구조",
+        "category": "Bioavailability"
+    },
+    "f130": {
+        "mapped_bit": 1750,
+        "correlation": -0.4859598063088189,
+        "dominant_class": "2",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f681": {
+        "mapped_bit": 1380,
+        "correlation": 0.41156807457706635,
+        "dominant_class": "113",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f390": {
+        "mapped_bit": 1750,
+        "correlation": -0.5039796726355709,
+        "dominant_class": "13",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f490": {
+        "mapped_bit": 1199,
+        "correlation": 0.22925266951435222,
+        "dominant_class": "14",
+        "clinical_meaning": "수송체 간섭 (P-gp/OATP Inhibition)",
+        "category": "Transporter Interference"
+    },
+    "f604": {
+        "mapped_bit": 1750,
+        "correlation": 0.2627809001470934,
+        "dominant_class": "88",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f569": {
+        "mapped_bit": 1380,
+        "correlation": 0.3025306113578534,
+        "dominant_class": "56",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f534": {
+        "mapped_bit": 378,
+        "correlation": -0.3587244560652479,
+        "dominant_class": "21",
+        "clinical_meaning": "간 대사 효소(CYP) 억제 및 경합 (Metabolic Inhibition)",
+        "category": "Enzyme Inhibition"
+    },
+    "f31": {
+        "mapped_bit": 1257,
+        "correlation": -0.25095555487107574,
+        "dominant_class": "3",
+        "clinical_meaning": "생체 이용률(Absorbtion) 관련 구조",
+        "category": "Bioavailability"
+    },
+    "f11": {
+        "mapped_bit": 1750,
+        "correlation": -0.2987056048338192,
+        "dominant_class": "24",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f431": {
+        "mapped_bit": 378,
+        "correlation": 0.36644337266779214,
+        "dominant_class": "102",
+        "clinical_meaning": "간 대사 효소(CYP) 억제 및 경합 (Metabolic Inhibition)",
+        "category": "Enzyme Inhibition"
+    },
+    "f622": {
+        "mapped_bit": 1057,
+        "correlation": 0.17680361599080166,
+        "dominant_class": "61",
+        "clinical_meaning": "생체 이용률(Absorbtion) 관련 구조",
+        "category": "Bioavailability"
+    },
+    "f352": {
+        "mapped_bit": 1866,
+        "correlation": -0.19363461175577432,
+        "dominant_class": "34",
+        "clinical_meaning": "간 대사 효소(CYP) 억제 및 경합 (Metabolic Inhibition)",
+        "category": "Enzyme Inhibition"
+    },
+    "f206": {
+        "mapped_bit": 1543,
+        "correlation": 0.2686942857575747,
+        "dominant_class": "50",
+        "clinical_meaning": "신장 배설 경로 상호작용 (Renal Clearance)",
+        "category": "Renal Competition"
+    },
+    "f487": {
+        "mapped_bit": 1199,
+        "correlation": -0.22162034227256533,
+        "dominant_class": "107",
+        "clinical_meaning": "수송체 간섭 (P-gp/OATP Inhibition)",
+        "category": "Transporter Interference"
+    },
+    "f209": {
+        "mapped_bit": 807,
+        "correlation": 0.2703766970497133,
+        "dominant_class": "24",
+        "clinical_meaning": "생체 이용률(Absorbtion) 관련 구조",
+        "category": "Bioavailability"
+    },
+    "f298": {
+        "mapped_bit": 1950,
+        "correlation": 0.2634822798037884,
+        "dominant_class": "25",
+        "clinical_meaning": "생체 이용률(Absorbtion) 관련 구조",
+        "category": "Bioavailability"
+    },
+    "f47": {
+        "mapped_bit": 378,
+        "correlation": 0.36644337266779214,
+        "dominant_class": "51",
+        "clinical_meaning": "간 대사 효소(CYP) 억제 및 경합 (Metabolic Inhibition)",
+        "category": "Enzyme Inhibition"
+    },
+    "f26": {
+        "mapped_bit": 1750,
+        "correlation": -0.28986329605653943,
+        "dominant_class": "36",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f323": {
+        "mapped_bit": 1380,
+        "correlation": 0.3673702552937967,
+        "dominant_class": "65",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f520": {
+        "mapped_bit": 1873,
+        "correlation": 0.45264016508832167,
+        "dominant_class": "72",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f577": {
+        "mapped_bit": 1057,
+        "correlation": 0.2721136871297396,
+        "dominant_class": "47",
+        "clinical_meaning": "생체 이용률(Absorbtion) 관련 구조",
+        "category": "Bioavailability"
+    },
+    "f656": {
+        "mapped_bit": 314,
+        "correlation": -0.22804966979231994,
+        "dominant_class": "63",
+        "clinical_meaning": "생체 이용률(Absorbtion) 관련 구조",
+        "category": "Bioavailability"
+    },
+    "f39": {
+        "mapped_bit": 1844,
+        "correlation": 0.2363533762886818,
+        "dominant_class": "21",
+        "clinical_meaning": "생체 이용률(Absorbtion) 관련 구조",
+        "category": "Bioavailability"
+    },
+    "f181": {
+        "mapped_bit": 1750,
+        "correlation": 0.48498796717363246,
+        "dominant_class": "22",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f401": {
+        "mapped_bit": 1750,
+        "correlation": 0.42042013315901067,
+        "dominant_class": "45",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f100": {
+        "mapped_bit": 1750,
+        "correlation": 0.2235662365626981,
+        "dominant_class": "35",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f309": {
+        "mapped_bit": 1602,
+        "correlation": 0.23752029143220482,
+        "dominant_class": "97",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f464": {
+        "mapped_bit": 1152,
+        "correlation": 0.24481580787312565,
+        "dominant_class": "88",
+        "clinical_meaning": "심혈관 전도(QT) 영향 가능성 (Potential QT Risk)",
+        "category": "QT Prolongation"
+    },
+    "f123": {
+        "mapped_bit": 1873,
+        "correlation": 0.24915428825036326,
+        "dominant_class": "26",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f57": {
+        "mapped_bit": 926,
+        "correlation": 0.49609355077991696,
+        "dominant_class": "52",
+        "clinical_meaning": "생체 이용률(Absorbtion) 관련 구조",
+        "category": "Bioavailability"
+    },
+    "f302": {
+        "mapped_bit": 1380,
+        "correlation": 0.36957742425741347,
+        "dominant_class": "53",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f573": {
+        "mapped_bit": 1019,
+        "correlation": 0.3670519943913625,
+        "dominant_class": "29",
+        "clinical_meaning": "생체 이용률(Absorbtion) 관련 구조",
+        "category": "Bioavailability"
+    },
+    "f45": {
+        "mapped_bit": 926,
+        "correlation": 0.23972235689701216,
+        "dominant_class": "31",
+        "clinical_meaning": "생체 이용률(Absorbtion) 관련 구조",
+        "category": "Bioavailability"
+    },
+    "f379": {
+        "mapped_bit": 1873,
+        "correlation": 0.3349082420804925,
+        "dominant_class": "20",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    },
+    "f398": {
+        "mapped_bit": 1750,
+        "correlation": 0.3326130748057458,
+        "dominant_class": "88",
+        "clinical_meaning": "약력학적 상가 작용 (Pharmacodynamic Synergism)",
+        "category": "PD Synergism"
+    }
+}
