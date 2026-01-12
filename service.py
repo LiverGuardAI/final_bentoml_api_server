@@ -3,12 +3,14 @@ BentoML Service for LiverGuard CDSS (v1.4+ compatible)
 Model Store 연동 방식
 
 실행:
-    bentoml serve service:svc --reload --port 3001
-    
+    bentoml serve service:LiverGuardService --reload --port 3001
+
 엔드포인트:
-    POST /predict       - 통합 예측 (병기 + 재발 + 생존)
-    POST /predict_stage - 병기 예측만 (mRNA 불필요)
-    GET  /health        - 헬스체크 (정상적으로 동작 중인지 확인하기 위한 간단한 API)
+    POST /predict          - 통합 예측 (병기 + 재발 + 생존)
+    POST /predict_stage    - 병기 예측만 (mRNA 불필요)
+    POST /predict_relapse  - 재발 예측만 (mRNA 필수)
+    POST /predict_survival - 생존 분석만 (mRNA 필수)
+    POST /health           - 헬스체크
 """
 
 from __future__ import annotations
@@ -332,13 +334,108 @@ class LiverGuardService:
         }
 
     @bentoml.api
-    def health(self, _: Dict = None) -> Dict[str, Any]:
+    async def predict_relapse(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        재발 예측 전용 (mRNA 필수)
+
+        Input:
+        {
+            "clinical": [값],
+            "ct_features": [512개 값],
+            "mrna": [20개 값]
+        }
+        """
+        clinical = data.get('clinical', [])
+        ct = data.get('ct_features', [])
+        mrna = data.get('mrna', [])
+
+        error = self.validate_input(clinical, ct, mrna, require_mrna=True)
+        if error:
+            return {"error": error, "status": "validation_failed"}
+
+        if not HAS_RELAPSE:
+            return {"error": "Relapse model not loaded"}
+
+        try:
+            X = self.preprocess_relapse(clinical, mrna, ct)
+            proba = await relapse_runner.predict_proba.async_run(X)
+            prob = float(proba[0, 1])
+            threshold = relapse_objs['threshold']
+
+            return {
+                "relapse_probability": prob,
+                "risk_level": self.get_risk_level(prob),
+                "prediction": int(prob >= threshold),
+                "threshold_used": float(threshold),
+                "uses_mrna": True,
+                "model_version": "v11.6",
+                "prediction_timestamp": datetime.now().isoformat()
+            }
+        except Exception as e:
+            return {"error": str(e)}
+
+    @bentoml.api
+    async def predict_survival(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        생존 분석 전용 (mRNA 필수)
+
+        Input:
+        {
+            "clinical": [값],
+            "ct_features": [512개 값],
+            "mrna": [20개 값]
+        }
+        """
+        clinical = data.get('clinical', [])
+        ct = data.get('ct_features', [])
+        mrna = data.get('mrna', [])
+
+        error = self.validate_input(clinical, ct, mrna, require_mrna=True)
+        if error:
+            return {"error": error, "status": "validation_failed"}
+
+        if not HAS_SURVIVAL:
+            return {"error": "Survival model not loaded"}
+
+        try:
+            df_input = self.preprocess_survival(clinical, mrna, ct)
+            cox_model = survival_ref.load()
+            risk_score = float(cox_model.predict_partial_hazard(df_input).values[0])
+
+            cutoffs = survival_objs['risk_cutoffs']
+            risk_group = self.get_risk_group(risk_score, cutoffs)
+
+            # Calculate percentile for better interpretation
+            percentile = self.calculate_percentile(risk_score, survival_objs.get("risk_score_distribution", []))
+
+            return {
+                "risk_score": risk_score,
+                "risk_group": risk_group,
+                "risk_percentile": percentile,
+                "uses_mrna": True,
+                "interpretation": "relative_risk",
+                "warning": (
+                    "This result represents RELATIVE survival risk "
+                    "within the training cohort. "
+                    "It is NOT an absolute survival probability."
+                ),
+                "risk_cutoff_method": "percentile_33_66",
+                "model_version": "v11.6",
+                "prediction_timestamp": datetime.now().isoformat()
+            }
+        except Exception as e:
+            return {"error": str(e)}
+
+    @bentoml.api
+    async def health(self, data: Dict = None) -> Dict[str, Any]:
+        """헬스체크"""
         return {
             "status": "healthy",
+            "service": "liverguard_cdss",
             "models": {
                 "stage": HAS_STAGE,
                 "relapse": HAS_RELAPSE,
-                "survival": HAS_SURVIVAL,
+                "survival": HAS_SURVIVAL
             },
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now().isoformat()
         }
