@@ -201,6 +201,23 @@ def main():
     except Exception as e:
         print(f"❌ Error: {e}")
 
+@bentoml.api
+def check_ddi(self, drug_a: Dict[str, str], drug_b: Dict[str, str]) -> Dict[str, Any]:
+    # 병렬 분석 실행
+    dur_res, ai_res = self.ddi_engine.check_pair(
+        drug_a.get('name_kr'), drug_a.get('name_en'),
+        drug_b.get('name_kr'), drug_b.get('name_en')
+    )
+    
+    return {
+        "prediction_timestamp": datetime.now().isoformat(),
+        "status": "success",
+        # 리액트가 Case 1, Case 2로 나누어 쓰기 좋게 분리해서 보냄
+        "cases": {
+            "standard_dur": dur_res,
+            "ai_personalized": ai_res
+        }
+    }
 
 if __name__ == "__main__":
     main()

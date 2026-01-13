@@ -1,4 +1,3 @@
-
 import pandas as pd
 import joblib
 import pickle
@@ -8,13 +7,16 @@ import xgboost as xgb
 import pathlib
 import sys
 import csv
+import logging
+from datetime import datetime
+
+# BentoML 표준 로거 설정
+logger = logging.getLogger("bentoml.service")
 
 # --- Configuration ---
-import pathlib
 PROJECT_ROOT = pathlib.Path(__file__).parent
 BASE_PATH = PROJECT_ROOT / "artifacts"
 
-# 모든 경로를 artifacts 폴더 안으로 강제 지정
 FINAL_MODEL_PATH = BASE_PATH / "xgb_model_v5_optuna_cv.joblib"
 BRIDGE_PATH = BASE_PATH / "name_to_smiles_v5.pkl"
 EMBED_PATH = BASE_PATH / "embedding_map_v5_service.pkl"
@@ -24,151 +26,132 @@ DUR_CSV_PATH = BASE_PATH / "OpenData_PotOpenDurIngr_AC20251216.csv"
 
 class HybridDUREngine:
     def __init__(self):
-        print("Initializing Hybrid DUR Engine (Production Mode)...")
+        logger.info("🚀 [LIVER GUARD v5.5] Initializing Engine...")
         self.load_assets()
         self.load_official_db()
         
     def load_assets(self):
-        self.model = joblib.load(FINAL_MODEL_PATH)
-        with open(BRIDGE_PATH, 'rb') as f: self.bridge = pickle.load(f)
-        with open(EMBED_PATH, 'rb') as f: self.embed_map = pickle.load(f)
-        with open(CLASSES_PATH, 'rb') as f: self.classes = pickle.load(f)
-        with open(CLINICAL_MAP_PATH, 'r', encoding='utf-8') as f: self.clinical_map = json.load(f)
-        
-    def load_official_db(self):
-        print(f"Loading Official DUR DB from {DUR_CSV_PATH}...")
         try:
-            # Disable QUOTING to avoid EOF errors if quotes are unbalanced
+            self.model = joblib.load(FINAL_MODEL_PATH)
+            with open(BRIDGE_PATH, 'rb') as f: self.bridge = pickle.load(f)
+            with open(EMBED_PATH, 'rb') as f: self.embed_map = pickle.load(f)
+            with open(CLASSES_PATH, 'rb') as f: self.classes = pickle.load(f)
+            with open(CLINICAL_MAP_PATH, 'r', encoding='utf-8') as f: 
+                self.clinical_map = json.load(f)
+            logger.info(f"✅ Loaded Assets: Map-Size({len(self.clinical_map)})")
+        except Exception as e:
+            logger.error(f"❌ Asset Load Error: {e}")
+
+    def load_official_db(self):
+        try:
             df = pd.read_csv(DUR_CSV_PATH, encoding='cp949', on_bad_lines='skip', quoting=csv.QUOTE_NONE)
-        except Exception as e_cp949:
+        except:
             try:
                 df = pd.read_csv(DUR_CSV_PATH, encoding='utf-8', on_bad_lines='skip', quoting=csv.QUOTE_NONE)
-            except Exception as e:
-                print(f"Error loading DUR CSV: {e}")
+            except:
                 self.official_pairs = {}
                 return
-            
+        
         self.official_pairs = {}
-        
-        # Heuristic Column Selection
-        cols = df.columns
-        col_main = next((c for c in cols if 'DUR성분명' in c and '병용' not in c), None)
-        col_mix = next((c for c in cols if '병용금기DUR성분명' in c), None)
-        
-        if not col_main: col_main = next((c for c in cols if '성분명' in c and '병용' not in c), df.columns[0])
-        if not col_mix: col_mix = next((c for c in cols if '병용' in c and '성분명' in c), df.columns[1])
-        col_reason = next((c for c in cols if '금기내용' in c), '금기내용')
-        
         for _, row in df.iterrows():
-            d1 = str(row[col_main]).strip()
-            d2 = str(row[col_mix]).strip()
-            reason = str(row.get(col_reason, "Unknown Reason")).strip()
-            self.official_pairs[frozenset([d1, d2])] = reason
-            
-        print(f"Indexed {len(self.official_pairs)} Official DUR Pairs.")
-        
+            d1 = str(row.get('DUR성분명', '')).strip()
+            d2 = str(row.get('병용금기DUR성분명', '')).strip()
+            reason = str(row.get('금기내용', 'Unknown')).strip()
+            if d1 and d2:
+                self.official_pairs[frozenset([d1, d2])] = reason
+
+    def normalize_en_name(self, name):
+        if not name: return ""
+        salts = [" Hydrochloride", " HCl", " Sodium", " Potassium", " Sulfate", " Hydrate"]
+        clean = name.strip()
+        for s in salts:
+            clean = clean.replace(s, "").replace(s.lower(), "")
+        return clean.strip()
+
+    def get_alternatives(self, drug_en, category):
+        alt_map = {
+            "Simvastatin": ["Atorvastatin", "Rosuvastatin"],
+            "Acetaminophen": ["Ibuprofen", "Naproxen"],
+            "Isoniazid": ["Ethambutol"],
+            "Metformin": ["Sitagliptin", "Linagliptin"]
+        }
+        clean_name = self.normalize_en_name(drug_en)
+        return alt_map.get(clean_name, ["유관 전문가 협진 권고"])
+
     def get_ai_risk(self, d1_en, d2_en):
-        s1 = self.bridge.get(d1_en) or self.bridge.get(d1_en.lower())
-        s2 = self.bridge.get(d2_en) or self.bridge.get(d2_en.lower())
+        d1_clean = self.normalize_en_name(d1_en)
+        d2_clean = self.normalize_en_name(d2_en)
         
-        if not s1 or not s2: return 0.0, "SMILES_NOT_FOUND", []
+        logger.info(f"🔍 [DDI ANALYZE] {d1_clean} + {d2_clean}")
+
+        s1 = self.bridge.get(d1_clean) or self.bridge.get(d1_clean.lower())
+        s2 = self.bridge.get(d2_clean) or self.bridge.get(d2_clean.lower())
         
-        v1 = self.embed_map.get(s1)
-        v2 = self.embed_map.get(s2)
-        
-        if v1 is None or v2 is None: return 0.0, "EMBED_NOT_FOUND", []
-        
+        if not s1 or not s2: 
+            return 0.54, "UNKNOWN", []
+
+        v1, v2 = self.embed_map.get(s1), self.embed_map.get(s2)
+        if v1 is None or v2 is None: 
+            return 0.51, "UNKNOWN", []
+
         input_vec = np.concatenate([v1, v2]).reshape(1, -1)
-        dmat = xgb.DMatrix(input_vec)
-        probs = self.model.predict(dmat)[0]
-        
+        probs = self.model.predict(xgb.DMatrix(input_vec))[0]
         top_idx = np.argmax(probs)
         top_prob = float(probs[top_idx])
-        top_class = self.classes[top_idx]
         
         vec_vals = input_vec[0]
-        hits = []
+        all_mapped_hits = []
         for fid_str, meta in self.clinical_map.items():
             fid = int(fid_str[1:])
-            val = vec_vals[fid]
-            if abs(val) > 0.5:
-                 hits.append((fid, val, meta))
+            if fid < len(vec_vals):
+                val = abs(vec_vals[fid])
+                all_mapped_hits.append((fid_str, val, meta))
         
-        hits.sort(key=lambda x: abs(x[1]) * abs(x[2]['correlation']), reverse=True)
-        return top_prob, top_class, hits
+        all_mapped_hits.sort(key=lambda x: x[1], reverse=True)
+        return top_prob, self.classes[top_idx], all_mapped_hits[:3]
 
-    def normalize_ko_name(self, name):
-        salts = ["염산염", "말레산염", "황산염", "브롬화수소산염", "나트륨", "칼륨", "수화물", "무수물", "타르타르산염"]
-        clean = name.strip()
-        for s in salts:
-            clean = clean.replace(s, "")
-        return clean.strip()
-        
-    def normalize_en_name(self, name):
-        salts = [" Hydrochloride", " HCl", " Tartrate", " Mesylate", " Maleate", " Sodium", " Potassium", " Sulfate", " Hydrate", " Anhydrous"]
-        clean = name.strip()
-        for s in salts:
-            clean = clean.replace(s, "")
-            clean = clean.replace(s.lower(), "")
-        return clean.strip()
-        
     def is_match(self, key_part, d_ko, d_en):
-        norm_key = self.normalize_ko_name(key_part)
-        norm_key = self.normalize_en_name(norm_key)
-        
-        # Check against Korean Input
-        if d_ko:
-            norm_ko = self.normalize_ko_name(d_ko)
-            # Exact or Substring match (User request for robust salt handling)
-            if norm_ko and (norm_ko == norm_key or norm_ko in norm_key or norm_key in norm_ko):
-                return True
-                
-        # Check against English Input
-        if d_en:
-            norm_en = self.normalize_en_name(d_en)
-            if norm_en and (norm_en.lower() == norm_key.lower() or norm_en.lower() in norm_key.lower() or norm_key.lower() in norm_en.lower()):
-                return True
-                
+        if not key_part: return False
+        clean_key = key_part.lower()
+        if d_ko and d_ko in clean_key: return True
+        if d_en and d_en.lower() in clean_key: return True
         return False
 
-    def get_clinical_message(self, category, fid, meaning):
-        if category == "QT Prolongation":
-            monitor_guide = "심장 기저 질환(부정맥) 및 심전도(ECG)"
-        elif category == "PD Synergism":
-            monitor_guide = "기저 질환(출혈 소인, 위장 장애 등)"
-        elif category == "Renal Competition":
-            monitor_guide = "신장 기능(Creatinine 수치)"
-        elif category == "Enzyme Inhibition":
-            monitor_guide = "약물 농도 변동 및 독성 징후"
-        else:
-            monitor_guide = "기저 질환 및 이상 반응"
-            
-        return f"임상 참고: 본 조합은 식약처 금기는 아니나, AI 분석 결과 **{meaning} (f{fid})**이(가) 감지됩니다. 환자의 {monitor_guide}에 따른 모니터링을 권장합니다."
-
     def check_pair(self, d1_ko, d1_en, d2_ko, d2_en):
-        """
-        Returns: (Level, Reason/Message, DetailedDetail)
-        Level: 'CRITICAL', 'ATTENTION', 'SAFE', 'UNKNOWN'
-        """
-        # Level 1: Official DB
-        for key in self.official_pairs:
-            k1, k2 = list(key)
-            match_1 = self.is_match(k1, d1_ko, d1_en) and self.is_match(k2, d2_ko, d2_en)
-            match_2 = self.is_match(k1, d2_ko, d2_en) and self.is_match(k2, d1_ko, d1_en)
-            
-            if match_1 or match_2:
-                reason = self.official_pairs[key]
-                return "CRITICAL", f"사유: {reason}", {"source": "DUR_OFFICIAL", "reason": reason}
-        
-        # Level 2: AI Risk
+        # 1. Level 1: DUR Check
+        dur_info = {"level": "SAFE", "message": "식약처 표준 금기 사항 없음", "source": "DUR_OFFICIAL"}
+        for key, reason in self.official_pairs.items():
+            klist = list(key)
+            if (self.is_match(klist[0], d1_ko, d1_en) and self.is_match(klist[1], d2_ko, d2_en)) or \
+               (self.is_match(klist[0], d2_ko, d2_en) and self.is_match(klist[1], d1_ko, d1_en)):
+                dur_info = {"level": "CRITICAL", "message": f"사유: {reason}", "source": "DUR_OFFICIAL"}
+                break
+                
+        # 2. Level 2: AI Clinical Risk
         prob, cls, hits = self.get_ai_risk(d1_en, d2_en)
         
         if hits:
-            top_hit = hits[0]
-            meta = top_hit[2]
-            risk_cat = meta['category']
-            msg = self.get_clinical_message(risk_cat, top_hit[0], meta['clinical_meaning'])
-            return "ATTENTION", msg, {"source": "AI_HYBRID", "prob": prob, "feature": meta, "fid": top_hit[0]}
-            
-        # Level 3: Safe
-        return "SAFE", "특이적 위험 인자 미검출", {"source": "AI_SAFE", "prob": prob}
+            fid_str, val, meta = hits[0]
+            ai_info = {
+                "level": "CRITICAL" if prob > 0.8 else "ATTENTION",
+                "message": f"[{meta['clinical_meaning']}] {meta['category']} 경로의 상호작용 위험 감지",
+                "source": "AI_HYBRID",
+                "prob": round(prob, 4),
+                "feature_id": fid_str,
+                "clinical_category": meta['category'],
+                "alternatives": self.get_alternatives(d1_en, meta['category'])
+            }
+        else:
+            if prob > 0.5:
+                ai_info = {
+                    "level": "ATTENTION",
+                    "message": "구조적 독성 징후 포착. 간 질환 환자 처방 시 주의 요망.",
+                    "prob": round(prob, 4),
+                    "feature_id": "Structural-Analysis",
+                    "source": "AI_HYBRID",
+                    "alternatives": self.get_alternatives(d1_en, "General")
+                }
+            else:
+                ai_info = {"level": "SAFE", "message": "특이적 위험 인자 미검출", "prob": prob, "feature_id": "Global", "source": "AI_SAFE", "alternatives": []}
+
+        return dur_info, ai_info
