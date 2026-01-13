@@ -140,6 +140,7 @@ def register_models(artifacts_dir: str = "./artifacts"):
                     "n_mrna": task3['n_mrna'],
                     "n_ct_pca": task3['n_ct_pca'],
                     "risk_cutoffs": task3['risk_cutoffs'],
+                    "risk_score_distribution": task3.get('risk_score_distribution'),
                     "feature_names": task3['feature_names'],
                     "uses_mrna": task3['uses_mrna'],
                 },
