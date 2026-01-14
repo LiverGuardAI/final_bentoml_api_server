@@ -641,18 +641,18 @@ class LiverGuardService:
 
     @bentoml.api
     def check_ddi(self, drug_a: Dict[str, str], drug_b: Dict[str, str]) -> Dict[str, Any]:
-        """
-        DDI 하이브리드 검사 (기존 타임스탬프 및 메타데이터 규격 준수)
-        """
-        level, message, detail = self.ddi_engine.check_pair(
+        # 💡 튜플로 두 개를 받습니다 (우리가 수정한 check_pair 규격)
+        dur_res, ai_res = self.ddi_engine.check_pair(
             drug_a.get('name_kr'), drug_a.get('name_en'),
             drug_b.get('name_kr'), drug_b.get('name_en')
         )
         
+        # 💡 리액트가 원하는 'cases' 구조로 포장해서 내보냅니다.
         return {
             "prediction_timestamp": datetime.now().isoformat(),
-            "level": level,
-            "message": message,
-            "detail": detail,
-            "status": "success"
+            "status": "success",
+            "cases": {
+                "standard_dur": dur_res,
+                "ai_personalized": ai_res
+            }
         }
