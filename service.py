@@ -1,6 +1,6 @@
 """
-BentoML Service for LiverGuard CDSS (v1.4+ compatible)
-Model Store 연동 방식
+BentoML Service for LiverGuard CDSS (v1.4+ New API)
+Runner-free 방식
 
 실행:
     bentoml serve service:LiverGuardService --reload --port 3001
@@ -22,9 +22,7 @@ from typing import Dict, Any, List, Optional
 import numpy as np
 import pandas as pd
 import bentoml
-from bentoml.io import JSON
 from hybrid_dur_model import HybridDUREngine
-
 
 
 # 한국 시간대 (UTC+9)
@@ -43,99 +41,60 @@ def _safe_float(value) -> Optional[float]:
 
 
 # ============================================================
-# Model Loading (BentoML Model Store)
-# ============================================================
-
-HAS_STAGE = HAS_RELAPSE = HAS_SURVIVAL = False
-stage_runner = None
-relapse_runner = None
-
-# Task 1: Stage (sklearn - XGBoost)
-try:
-    stage_ref = bentoml.sklearn.get("liverguard_stage:latest")
-    stage_runner = stage_ref.to_runner()
-    if hasattr(stage_runner, "init_local"):
-        stage_runner.init_local()
-    stage_objs = stage_ref.custom_objects
-    HAS_STAGE = True
-    print(f"✅ Stage model loaded: {stage_ref.tag}")
-except Exception as e:
-    print(f"⚠️ Stage model load failed: {e}")
-
-# Task 2: Relapse (sklearn - RandomForest)
-try:
-    relapse_ref = bentoml.sklearn.get("liverguard_relapse:latest")
-    relapse_runner = relapse_ref.to_runner()
-    if hasattr(relapse_runner, "init_local"):
-        relapse_runner.init_local()
-    relapse_objs = relapse_ref.custom_objects
-    HAS_RELAPSE = True
-    print(f"✅ Relapse model loaded: {relapse_ref.tag}")
-except Exception as e:
-    print(f"⚠️ Relapse model load failed: {e}")
-
-# Task 3: Survival (picklable - CoxPH)
-try:
-    survival_ref = bentoml.picklable_model.get("liverguard_survival:latest")
-    survival_objs = survival_ref.custom_objects
-    HAS_SURVIVAL = True
-    print(f"✅ Survival model loaded: {survival_ref.tag}")
-except Exception as e:
-    print(f"⚠️ Survival model load failed: {e}")
-
-# ============================================================
-# Service 정의
+# Service 정의 (BentoML 1.4+ New API - No Runners)
 # ============================================================
 
 @bentoml.service(
     name="liverguard_cdss",
     traffic={"timeout": 60},
-    runners=[
-        *([stage_runner] if HAS_STAGE and stage_runner is not None else []),
-        *([relapse_runner] if HAS_RELAPSE and relapse_runner is not None else []),
-    ]
 )
 class LiverGuardService:
-    # 1. Runner 선언 (Class attributes for auto-collection)
-    stage_runner = stage_runner
-    relapse_runner = relapse_runner
 
     def __init__(self):
-        print("Initializing LiverGuardService...")
-        
+        print("Initializing LiverGuardService (BentoML 1.4+ API)...")
+
         # 1. DDI Engine initialization
         print("Initializing HybridDUREngine...")
         self.ddi_engine = HybridDUREngine()
 
-        # 2. Stage Custom Objects
+        # 2. Stage Model (sklearn - XGBoost)
         self.has_stage = False
+        self.stage_model = None
+        self.stage_objs = None
         try:
-            stage_ref = bentoml.sklearn.get("liverguard_stage:latest")
+            stage_ref = bentoml.models.get("liverguard_stage:latest")
+            self.stage_model = bentoml.sklearn.load_model(stage_ref.tag)
             self.stage_objs = stage_ref.custom_objects
             self.has_stage = True
-            print(f"✅ Stage model objects loaded: {stage_ref.tag}")
+            print(f"✅ Stage model loaded: {stage_ref.tag}")
         except Exception as e:
-            print(f"⚠️ Stage objects load failed: {e}")
+            print(f"⚠️ Stage model load failed: {e}")
 
-        # 3. Relapse Custom Objects
+        # 3. Relapse Model (sklearn - RandomForest)
         self.has_relapse = False
+        self.relapse_model = None
+        self.relapse_objs = None
         try:
-            relapse_ref = bentoml.sklearn.get("liverguard_relapse:latest")
+            relapse_ref = bentoml.models.get("liverguard_relapse:latest")
+            self.relapse_model = bentoml.sklearn.load_model(relapse_ref.tag)
             self.relapse_objs = relapse_ref.custom_objects
             self.has_relapse = True
-            print(f"✅ Relapse model objects loaded: {relapse_ref.tag}")
+            print(f"✅ Relapse model loaded: {relapse_ref.tag}")
         except Exception as e:
-            print(f"⚠️ Relapse objects load failed: {e}")
+            print(f"⚠️ Relapse model load failed: {e}")
 
-        # 4. Survival Custom Objects & Model (Picklable models are not runners by default)
+        # 4. Survival Model (CoxPH - lifelines)
         self.has_survival = False
+        self.survival_model = None
+        self.survival_objs = None
         try:
-            self.survival_ref = bentoml.picklable_model.get("liverguard_survival:latest")
-            self.survival_objs = self.survival_ref.custom_objects
+            survival_ref = bentoml.models.get("liverguard_survival:latest")
+            self.survival_model = bentoml.picklable_model.load_model(survival_ref.tag)
+            self.survival_objs = survival_ref.custom_objects
             self.has_survival = True
-            print(f"✅ Survival model objects loaded: {self.survival_ref.tag}")
+            print(f"✅ Survival model loaded: {survival_ref.tag}")
         except Exception as e:
-            print(f"⚠️ Survival objects load failed: {e}")
+            print(f"⚠️ Survival model load failed: {e}")
 
     # ============================================================
     # 입력 검증
@@ -157,26 +116,26 @@ class LiverGuardService:
         return None
 
     # ============================================================
-    # 전처리 함수 (Instance methods accessing self.*_objs)
+    # 전처리 함수
     # ============================================================
 
     def preprocess_stage(self, clinical, ct):
         clinical = np.array(clinical).reshape(1, -1)
         ct = np.array(ct).reshape(1, -1)
-    
+
         # Clinical: feature selection → impute → scale
         clinical = clinical[:, self.stage_objs["clinical_idx"]]
         clinical = self.stage_objs["scaler_clin"].transform(
             self.stage_objs["imputer_clin"].transform(clinical)
         )
-    
+
         # CT: impute → scale → PCA
         ct = self.stage_objs["pca"].transform(
                 self.stage_objs["scaler_ct"].transform(
                     self.stage_objs["imputer_ct"].transform(ct)
                 )
             )
-    
+
         return np.hstack([clinical, ct])
 
     def preprocess_relapse(self, clinical, mrna, ct):
@@ -184,25 +143,25 @@ class LiverGuardService:
         clinical = np.array(clinical).reshape(1, -1)
         mrna = np.array(mrna).reshape(1, -1)
         ct = np.array(ct).reshape(1, -1)
-    
+
         # Clinical: feature selection → impute → scale
         clinical = clinical[:, self.relapse_objs["clinical_idx"]]
         clinical = self.relapse_objs["scaler_clin"].transform(
             self.relapse_objs["imputer_clin"].transform(clinical)
         )
-        
+
         # mRNA: impute → scale
         mrna = self.relapse_objs["scaler_mrna"].transform(
             self.relapse_objs["imputer_mrna"].transform(mrna)
         )
-        
+
         # CT: impute → scale → PCA
         ct = self.relapse_objs["pca"].transform(
             self.relapse_objs["scaler_ct"].transform(
                 self.relapse_objs["imputer_ct"].transform(ct)
             )
         )
-        
+
         return np.hstack([clinical, mrna, ct])
 
     def preprocess_survival(self, clinical, mrna, ct):
@@ -210,32 +169,32 @@ class LiverGuardService:
         clinical = np.array(clinical).reshape(1, -1)
         mrna = np.array(mrna).reshape(1, -1)
         ct = np.array(ct).reshape(1, -1)
-        
+
         # Clinical: feature selection → impute → scale
-        clinical_idx = survival_objs.get("clinical_idx")
+        clinical_idx = self.survival_objs.get("clinical_idx")
         if clinical_idx is None:
-            n_clinical = survival_objs.get("n_clinical")
+            n_clinical = self.survival_objs.get("n_clinical")
             if isinstance(n_clinical, int) and n_clinical > 0:
                 clinical_idx = list(range(n_clinical))
         if clinical_idx is not None:
             clinical = clinical[:, clinical_idx]
 
-        clinical = survival_objs["scaler_clin"].transform(
-            survival_objs["imputer_clin"].transform(clinical)
+        clinical = self.survival_objs["scaler_clin"].transform(
+            self.survival_objs["imputer_clin"].transform(clinical)
         )
-        
+
         # mRNA
         mrna = self.survival_objs["scaler_mrna"].transform(
             self.survival_objs["imputer_mrna"].transform(mrna)
         )
-        
+
         # CT
         ct = self.survival_objs["pca"].transform(
             self.survival_objs["scaler_ct"].transform(
                 self.survival_objs["imputer_ct"].transform(ct)
             )
         )
-        
+
         X = np.hstack([clinical, mrna, ct])
         return pd.DataFrame(X, columns=self.survival_objs["feature_names"])
 
@@ -256,7 +215,7 @@ class LiverGuardService:
         elif score <= cutoffs[1]:
             return "Medium"
         return "High"
-    
+
     @staticmethod
     def calculate_percentile(score: float, distribution: list[float]) -> float:
         if not distribution:
@@ -306,14 +265,14 @@ class LiverGuardService:
         return hr_table
 
     # ============================================================
-    # API Endpoints
+    # API Endpoints (동기 방식 - 직접 모델 호출)
     # ============================================================
 
     @bentoml.api
-    async def predict(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def predict(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
         통합 AI 예측 (병기 + 재발 + 생존)
-        
+
         Input:
         {
             "clinical": [11개 값],
@@ -342,11 +301,11 @@ class LiverGuardService:
                 "use_mrna": use_mrna
             }
         }
-        
+
         # ===== Task 1: Stage (mRNA 사용 안 함) =====
         if self.has_stage:
             X = self.preprocess_stage(clinical, ct)
-            proba = (await self.stage_runner.predict_proba.async_run(X))[0]
+            proba = self.stage_model.predict_proba(X)[0]
             pred = int(np.argmax(proba))
             labels = ["Stage I", "Stage II", "Stage III+"]
 
@@ -359,12 +318,12 @@ class LiverGuardService:
                 "model_version": "v11.6",
                 "prediction_timestamp": datetime.now(KST).isoformat()
             }
-            
+
         # ===== Task 2: Relapse (mRNA 필요) =====
-        if HAS_RELAPSE:
+        if self.has_relapse:
             if use_mrna and mrna is not None and len(mrna) > 0:
                 X = self.preprocess_relapse(clinical, mrna, ct)
-                prob = float((await relapse_runner.predict_proba.async_run(X))[0, 1].item())
+                prob = float(self.relapse_model.predict_proba(X)[0, 1].item())
 
                 result["relapse_prediction"] = {
                     "relapse_probability": prob,
@@ -377,18 +336,17 @@ class LiverGuardService:
                     "error": "mRNA required",
                     "uses_mrna": True,
                 }
-                
+
         # ===== Task 3: Survival (mRNA 필요) =====
-        if HAS_SURVIVAL:
+        if self.has_survival:
             if use_mrna and mrna is not None and len(mrna) == 20:
                 try:
                     df_input = self.preprocess_survival(clinical, mrna, ct)
-                    cox_model = bentoml.picklable_model.load_model(survival_ref.tag)
-                    risk_score = float(cox_model.predict_partial_hazard(df_input).values[0].item())
+                    risk_score = float(self.survival_model.predict_partial_hazard(df_input).values[0].item())
 
-                    cutoffs = survival_objs["risk_cutoffs"]
-                    distribution = survival_objs.get("risk_score_distribution") or []
-                    percentile = self.calculate_percentile(risk_score, distribution) # ← 학습 시 저장
+                    cutoffs = self.survival_objs["risk_cutoffs"]
+                    distribution = self.survival_objs.get("risk_score_distribution") or []
+                    percentile = self.calculate_percentile(risk_score, distribution)
 
                     result["survival_analysis"] = {
                         "risk_score": risk_score,
@@ -402,7 +360,7 @@ class LiverGuardService:
                             "It is NOT an absolute survival probability."
                         ),
                     }
-                    
+
                 except Exception as e:
                     result["survival_analysis"] = {
                         "error": str(e),
@@ -415,13 +373,13 @@ class LiverGuardService:
                 }
 
         return result
-    
+
 
     @bentoml.api
-    async def predict_stage(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def predict_stage(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
         병기 예측 전용 (mRNA 불필요)
-        
+
         Input:
         {
             "clinical": [11개 값],
@@ -436,11 +394,11 @@ class LiverGuardService:
         if error:
             return {"error": error}
 
-        if not HAS_STAGE:
+        if not self.has_stage:
             return {"error": "Stage model not loaded", "status": "model_not_loaded"}
-        
+
         X = self.preprocess_stage(clinical, ct)
-        proba = (await self.stage_runner.predict_proba.async_run(X))[0]
+        proba = self.stage_model.predict_proba(X)[0]
         pred = int(np.argmax(proba))
         labels = ["Stage I", "Stage II", "Stage III+"]
 
@@ -455,7 +413,7 @@ class LiverGuardService:
         }
 
     @bentoml.api
-    async def predict_relapse(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def predict_relapse(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
         재발 예측 전용 (mRNA 필수)
 
@@ -480,9 +438,9 @@ class LiverGuardService:
 
         try:
             X = self.preprocess_relapse(clinical, mrna, ct)
-            proba = await relapse_runner.predict_proba.async_run(X)
+            proba = self.relapse_model.predict_proba(X)
             prob = float(proba[0, 1].item())
-            threshold = relapse_objs['threshold']
+            threshold = self.relapse_objs['threshold']
 
             return {
                 "relapse_probability": prob,
@@ -497,7 +455,7 @@ class LiverGuardService:
             return {"error": str(e)}
 
     @bentoml.api
-    async def predict_survival(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def predict_survival(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
         생존 분석 전용 (mRNA 필수)
 
@@ -522,17 +480,16 @@ class LiverGuardService:
 
         try:
             df_input = self.preprocess_survival(clinical, mrna, ct)
-            cox_model = bentoml.picklable_model.load_model(survival_ref.tag)
-            risk_score = float(cox_model.predict_partial_hazard(df_input).values[0].item())
+            risk_score = float(self.survival_model.predict_partial_hazard(df_input).values[0].item())
 
             cutoffs = self.survival_objs['risk_cutoffs']
             risk_group = self.get_risk_group(risk_score, cutoffs)
 
             # Calculate percentile for better interpretation
-            distribution = survival_objs.get("risk_score_distribution") or []
+            distribution = self.survival_objs.get("risk_score_distribution") or []
             percentile = self.calculate_percentile(risk_score, distribution)
-            timeline, survival_curve, hazard_curve = self.build_survival_curves(cox_model, df_input)
-            hr_table = self.build_hr_table(cox_model)
+            timeline, survival_curve, hazard_curve = self.build_survival_curves(self.survival_model, df_input)
+            hr_table = self.build_hr_table(self.survival_model)
 
             return {
                 "risk_score": risk_score,
@@ -562,7 +519,7 @@ class LiverGuardService:
             return {"error": str(e)}
 
     @bentoml.api
-    async def predict_survival_detail(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def predict_survival_detail(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
         생존 분석 상세 (곡선 + HR)
 
@@ -582,21 +539,20 @@ class LiverGuardService:
         if error:
             return {"error": error, "status": "validation_failed"}
 
-        if not HAS_SURVIVAL:
+        if not self.has_survival:
             return {"error": "Survival model not loaded"}
 
         try:
             df_input = self.preprocess_survival(clinical, mrna, ct)
-            cox_model = bentoml.picklable_model.load_model(survival_ref.tag)
-            risk_score = float(cox_model.predict_partial_hazard(df_input).values[0].item())
+            risk_score = float(self.survival_model.predict_partial_hazard(df_input).values[0].item())
 
-            cutoffs = survival_objs['risk_cutoffs']
+            cutoffs = self.survival_objs['risk_cutoffs']
             risk_group = self.get_risk_group(risk_score, cutoffs)
-            distribution = survival_objs.get("risk_score_distribution") or []
+            distribution = self.survival_objs.get("risk_score_distribution") or []
             percentile = self.calculate_percentile(risk_score, distribution)
 
-            timeline, survival_curve, hazard_curve = self.build_survival_curves(cox_model, df_input)
-            hr_table = self.build_hr_table(cox_model)
+            timeline, survival_curve, hazard_curve = self.build_survival_curves(self.survival_model, df_input)
+            hr_table = self.build_hr_table(self.survival_model)
 
             return {
                 "risk_score": risk_score,
@@ -626,7 +582,7 @@ class LiverGuardService:
             return {"error": str(e)}
 
     @bentoml.api
-    async def health(self, data: Dict = None) -> Dict[str, Any]:
+    def health(self, data: Dict = None) -> Dict[str, Any]:
         """헬스체크"""
         return {
             "status": "healthy",
@@ -641,13 +597,11 @@ class LiverGuardService:
 
     @bentoml.api
     def check_ddi(self, drug_a: Dict[str, str], drug_b: Dict[str, str]) -> Dict[str, Any]:
-        # 💡 튜플로 두 개를 받습니다 (우리가 수정한 check_pair 규격)
         dur_res, ai_res = self.ddi_engine.check_pair(
             drug_a.get('name_kr'), drug_a.get('name_en'),
             drug_b.get('name_kr'), drug_b.get('name_en')
         )
-        
-        # 💡 리액트가 원하는 'cases' 구조로 포장해서 내보냅니다.
+
         return {
             "prediction_timestamp": datetime.now().isoformat(),
             "status": "success",
