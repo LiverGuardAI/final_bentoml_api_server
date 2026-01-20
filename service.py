@@ -595,20 +595,23 @@ class LiverGuardService:
             "timestamp": datetime.now(KST).isoformat()
         }
 
-    @bentoml.api
-    def check_ddi(self, drug_a: Dict[str, str], drug_b: Dict[str, str]) -> Dict[str, Any]:
-        dur_res, ai_res = self.ddi_engine.check_pair(
-            drug_a.get('name_kr'), drug_a.get('name_en'),
-            drug_b.get('name_kr'), drug_b.get('name_en')
-        )
-
         
-        # 💡 리액트가 원하는 'cases' 구조로 포장해서 내보냅니다.
-        return {
-            "prediction_timestamp": datetime.now().isoformat(),
-            "status": "success",
-            "cases": {
-                "standard_dur": dur_res,
-                "ai_personalized": ai_res
-            }
-        }
+    # --- 🔍 [추가] 약물 검색 엔드포인트 ---
+    @bentoml.api
+    def search_master(self, q: str) -> List[Dict[str, Any]]:
+        """
+        장고의 search_drugs 뷰에서 호출하는 /search_master 엔드포인트
+        """
+        # 엔진에 이미 만들어두신 search_drugs 메서드를 호출합니다.
+        return self.ddi_engine.search_drugs(q)
+
+    # --- 💊 [수정] 통합 DDI 분석 엔드포인트 ---
+    @bentoml.api
+    def check_ddi(self, prescription: List[Dict[str, str]]) -> Dict[str, Any]:
+        """
+        장고의 DDIAnalysisView에서 호출하는 /check_ddi 엔드포인트
+        이제 2개의 약물이 아니라 '리스트(처방전)' 전체를 받습니다.
+        """
+        # 엔진의 analyze_prescription 메서드를 호출하여 
+        # 조합(Combination) 분석 결과를 반환합니다.
+        return self.ddi_engine.analyze_prescription(prescription)
