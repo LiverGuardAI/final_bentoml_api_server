@@ -43,7 +43,7 @@ class HybridDUREngine:
     def __init__(self):
         logger.info("🚀 [LiverGuard V8.9.21 PRO] Professional Integrated Engine Initializing...")
         
-        # 1. 정규화용 염(Salts) 및 특수어구 목록 보강 (DUR 매칭률 극대화)
+        # 1. 정규화용 염(Salts) 및 특수어구 목록
         self.salts = [
             " hydrochloride", " hcl", " sodium", " potassium", " sulfate", " hydrate", " phosphate", 
             " micronized", " besylate", " maleate", " calcium", " succinate", " acetate", " nitrate", 
@@ -55,10 +55,10 @@ class HybridDUREngine:
         # 2. 데이터 컨테이너 초기화
         self.synonym_map = {}
         self.name_to_dbid = {}
-        self.dbid_to_categories = {}  # DBID별 카테고리 정보
-        self.cat_to_dbids = {}        # 카테고리별 역인덱싱
-        self.official_rules = {}      # DUR 규칙 (frozenset: message)
-        self.db_known_rules = {}      # DrugBank 규칙 (frozenset: LabelID)
+        self.dbid_to_categories = {}
+        self.cat_to_dbids = {}
+        self.official_rules = {}
+        self.db_known_rules = {}
         self.ing_to_atc = {}
         self.atc_to_ings = {}
         self.ing_to_primary_name = {}
@@ -83,20 +83,17 @@ class HybridDUREngine:
             logger.error(f"❌ AI 자산 로드 실패: {e}")
 
     def normalize(self, name):
-        """지능형 성분명 정규화 (DUR 코드, 괄호, 염 성분 제거)"""
+        """지능형 성분명 정규화"""
         if not name or str(name).lower() == 'nan': return ""
-        # 괄호 및 코드 제거: [M0123]돔페리돈(42%) -> 돔페리돈
         clean = re.sub(r'\[.*?\]', '', str(name))
         clean = re.sub(r'\(.*?\)', '', clean).strip().lower()
-        # 염 및 제형 정보 제거
         for s in self.salts:
             clean = clean.replace(s.lower(), "")
-        # 공백 제거 및 유의어 사전 적용
         clean = clean.replace(" ", "")
         return self.synonym_map.get(clean, clean)
 
     def get_all_ids(self, name):
-        """단일 명칭으로부터 매칭 가능한 모든 식별자(정규화명, DBID) 추출"""
+        """식별자 추출"""
         if not name: return set()
         norm = self.normalize(name)
         ids = {norm} if norm else set()
@@ -105,8 +102,7 @@ class HybridDUREngine:
         return ids
 
     def build_master_indices(self):
-        """Medicine Master 및 DUR 데이터를 통합 분석 및 인덱싱"""
-        # 1. Medicine Master 로드 (기본 인덱스 및 ATC 구축)
+        """마스터 인덱싱"""
         if MEDICINE_MASTER_PATH.exists():
             df_m = pd.read_csv(MEDICINE_MASTER_PATH)
             for _, row in df_m.iterrows():
@@ -130,11 +126,9 @@ class HybridDUREngine:
                     if code[:5] not in self.atc_to_ings: self.atc_to_ings[code[:5]] = set()
                     self.atc_to_ings[code[:5]].add(std_norm)
 
-        # 2. DUR 마스터 로드 (슬래시 분할 및 영문명 포함 정밀 매칭)
         if INTEGRATED_DUR_PATH.exists():
             df_d = pd.read_csv(INTEGRATED_DUR_PATH)
             for _, row in df_d.iterrows():
-                # 💡 [핵심] 슬래시(/)로 구분된 복합 성분 분해 처리
                 raw_list1, raw_list2 = [], []
                 for col in ['주성분', 'DUR성분영문명']:
                     val = str(row.get(col, ''))
@@ -153,7 +147,6 @@ class HybridDUREngine:
                         if i1 and i2: self.official_rules[frozenset([i1, i2])] = desc
 
     def load_global_db(self):
-        """DrugBank 카테고리 및 상호작용 Label ID(TXT) 로드"""
         try:
             if DRUGBANK_MAP_PATH.exists():
                 db_map = pd.read_csv(DRUGBANK_MAP_PATH)
@@ -163,7 +156,6 @@ class HybridDUREngine:
                     self.name_to_dbid[norm_en] = dbid
                     self.name_to_dbid[norm_ko] = dbid
                     
-                    # 카테고리 인덱싱 (추천용)
                     cats = set(str(row.get('categories', '')).split('|'))
                     self.dbid_to_categories[dbid] = cats
                     for cat in cats:
@@ -177,14 +169,13 @@ class HybridDUREngine:
                     next(reader)
                     for row in reader:
                         if len(row) >= 3:
-                            # 💡 [핵심 수정] Label ID(10번 등)를 정수로 저장
                             self.db_known_rules[frozenset([row[0].strip().upper(), row[1].strip().upper()])] = int(row[2].strip())
         except Exception as e: logger.error(f"⚠️ 글로벌 DB 로드 실패: {e}")
 
     def analyze(self, d1_input, d2_input):
         d1_candidates = [d1_input.get('item_name'), d1_input.get('name_en'), d1_input.get('name_kr')]
         d2_candidates = [d2_input.get('item_name'), d2_input.get('name_en'), d2_input.get('name_kr')]
-        worst_case = {"status": "SAFE", "message": "위험 보고 없음", "source": "NONE", "details": [], "prob": 0.0, "alternatives_d1": [], "alternatives_d2": []}
+        worst_case = {"status": "SAFE", "message": "위험 보고 없음", "summary_title": "안전", "source": "NONE", "details": [], "prob": 0.0, "alternatives_d1": [], "alternatives_d2": []}
 
         for n1 in d1_candidates:
             for n2 in d2_candidates:
@@ -192,25 +183,9 @@ class HybridDUREngine:
                 d1_norm, d2_norm = self.normalize(n1), self.normalize(n2)
                 ids1, ids2 = self.get_all_ids(n1), self.get_all_ids(n2)
                 
-                # 1단계: DUR 확인 (국내 식약처 기준)
-                dur_msg = None
-                for i1 in ids1:
-                    for i2 in ids2:
-                        if frozenset([i1, i2]) in self.official_rules:
-                            dur_msg = self.official_rules[frozenset([i1, i2])]; break
-                
-                # 2단계: 글로벌 DrugBank 확인 (Label ID 기반 매핑)
-                db_rule_id = None
-                dbids1 = [i for i in ids1 if str(i).startswith('DB')]
-                dbids2 = [i for i in ids2 if str(i).startswith('DB')]
-                for db1 in dbids1:
-                    for db2 in dbids2:
-                        key = frozenset([db1, db2])
-                        if key in self.db_known_rules:
-                            db_rule_id = self.db_known_rules[key]
-                            break
-
-                # 3단계: AI 추론
+                # ---------------------------------------------------------
+                # [0] AI 추론 미리 수행 (위험의 '성격'과 '요약 제목'을 먼저 파악)
+                # ---------------------------------------------------------
                 s1, s2 = self.bridge.get(d1_norm), self.bridge.get(d2_norm)
                 max_prob, pred_label, ai_ddi_info = 0.0, 0, ["안전", "특이사항 없음"]
                 input_vec = None
@@ -220,19 +195,47 @@ class HybridDUREngine:
                     max_prob, pred_label = np.max(probs), self.classes[np.argmax(probs)]
                     ai_ddi_info = DDI_KOREAN_MAP.get(int(pred_label), ["주의", "상호작용 보고됨"])
 
-                # [최종 우선순위 및 메시지 결정]
+                # [1] DUR 확인
+                dur_msg = None
+                for i1 in ids1:
+                    for i2 in ids2:
+                        if frozenset([i1, i2]) in self.official_rules:
+                            dur_msg = self.official_rules[frozenset([i1, i2])]; break
+                
+                # [2] DrugBank 확인
+                db_rule_id = None
+                dbids1 = [i for i in ids1 if str(i).startswith('DB')]
+                dbids2 = [i for i in ids2 if str(i).startswith('DB')]
+                for db1 in dbids1:
+                    for db2 in dbids2:
+                        key = frozenset([db1, db2])
+                        if key in self.db_known_rules:
+                            db_rule_id = self.db_known_rules[key]; break
+
+                # ---------------------------------------------------------
+                # [3] 최종 제목(Summary Title) 및 우선순위 결정
+                # ---------------------------------------------------------
+                # AI가 분류한 위험 제목(예: "QTc 연장/심장 마비 위험")을 최우선으로 가져옴
+                risk_title = ai_ddi_info[0] if int(pred_label) != 0 else None
+                if not risk_title and db_rule_id is not None:
+                    risk_title = DDI_KOREAN_MAP.get(db_rule_id, ["상호작용 주의"])[0]
+
                 if dur_msg: 
                     status, msg, source = "CRITICAL", f"[DUR 금기] {dur_msg}", "DUR_KOREA"
+                    # 고정 문구 대신 AI가 찾은 '위험 성격'을 제목으로 사용
+                    summary_title = risk_title if risk_title else "DUR 금기 위반"
                 elif db_rule_id is not None: 
-                    # 💡 [핵심 수정] 하드코딩된 메시지 대신 Label ID로 사전 조회
                     mapped_info = DDI_KOREAN_MAP.get(db_rule_id, ["상호작용 주의", "병용 시 주의가 필요합니다."])
                     status, msg, source = "MONITORING", f"[DrugBank] {mapped_info[1]}", "DRUGBANK"
+                    summary_title = risk_title if risk_title else mapped_info[0]
                 elif max_prob >= 0.85 and int(pred_label) != 0:
                     status, msg, source = "MONITORING", f"[AI 예측] {ai_ddi_info[1]}", "AI_ENGINE"
+                    summary_title = ai_ddi_info[0]
                 else:
                     status, msg, source = "SAFE", "임상적 상호작용 보고 없음", "NONE"
+                    summary_title = "안전"
 
-                # Clinical Map 정밀 기전 추출
+                # SHAP 기반 기전 추출
                 features = []
                 if input_vec is not None:
                     related_atcs = set()
@@ -253,7 +256,12 @@ class HybridDUREngine:
                     features.sort(key=lambda x: x['score'], reverse=True)
 
                 res = {
-                    "status": status, "message": msg, "source": source, "details": features[:3], "prob": float(max_prob),
+                    "status": status, 
+                    "message": msg, 
+                    "summary_title": summary_title, # ✅ 이제 "QTc 연장..." 등이 들어감
+                    "source": source, 
+                    "details": features[:3], 
+                    "prob": float(max_prob),
                     "alternatives_d1": self.get_smart_alternatives(d1_norm, [d2_norm], dbids1), 
                     "alternatives_d2": self.get_smart_alternatives(d2_norm, [d1_norm], dbids2)
                 }
@@ -262,10 +270,8 @@ class HybridDUREngine:
         return worst_case
 
     def get_smart_alternatives(self, target_ing, context_ings, dbids):
-        """💡 [ATC + Category 하이브리드 추천 엔진]"""
+        """대체 성분 추천 엔진"""
         alts, seen = [], {target_ing} | set(context_ings)
-        
-        # 1. ATC 코드 매칭 (동일 약효군 우선)
         target_atcs = self.ing_to_atc.get(target_ing, set())
         for atc in target_atcs:
             for cand in self.atc_to_ings.get(atc[:5], set()):
@@ -273,8 +279,6 @@ class HybridDUREngine:
                     alts.append({"ingredient": cand.capitalize(), "product": self.ing_to_primary_name.get(cand, cand.capitalize()), "related_products": self.ing_to_product_list.get(cand, [])[:5], "match_type": "ATC Class"})
                     seen.add(cand)
                     if len(alts) >= 4: break
-
-        # 2. DrugBank 카테고리 매칭 (ATC가 없거나 부족할 때 보완)
         if len(alts) < 5:
             for dbid in dbids:
                 target_cats = [c for c in self.dbid_to_categories.get(dbid, set()) if len(c) > 12]
@@ -289,23 +293,30 @@ class HybridDUREngine:
         return alts[:5]
 
     def analyze_prescription(self, prescription_list):
+        """처방 리스트 전체 분석"""
         interactions = []
         for d1, d2 in combinations(prescription_list, 2):
             res = self.analyze(d1, d2) 
             top_feat = res['details'][0] if res.get('details') else None
             
-            # [Emergency Fix] f133 와파린 오염 수리 로직 유지
+            # 와파린 특수 처리 로직
             if top_feat and top_feat['fid'] == 'f133':
-                top_feat['meta']['molecular_logic'] = "와파린(비타민 K 길항제)과 타 약물의 대사 경쟁(CYP2C9 억제)으로 인한 혈중 농도 상승 및 출혈 위험 증가"
-                top_feat['meta']['impact'] = "항응고 효과의 과도한 증대로 인한 치명적 출혈 위험"
+                top_feat['meta']['molecular_logic'] = "와파린과 타 약물의 대사 경쟁(CYP2C9 억제)으로 인한 출혈 위험 증가"
+                top_feat['meta']['impact'] = "치명적 출혈 위험"
 
             interactions.append({
                 "pair": [d1, d2],
                 "analysis": {
-                    "final_status": res['status'], "final_message": res['message'], "source": res['source'],
+                    "final_status": res['status'], 
+                    "final_message": res['message'], 
+                    "summary_title": res['summary_title'], # ✅ 리액트로 제목 전달
+                    "source": res['source'],
                     "ai_personalized": {
-                        "level": res['status'], "prob": round(res['prob'], 4), "feature_id": top_feat['fid'] if top_feat else "Global",
-                        "alternatives_d1": res.get('alternatives_d1', []), "alternatives_d2": res.get('alternatives_d2', []),
+                        "level": res['status'], 
+                        "prob": round(res['prob'], 4), 
+                        "feature_id": top_feat['fid'] if top_feat else "Global",
+                        "alternatives_d1": res.get('alternatives_d1', []), 
+                        "alternatives_d2": res.get('alternatives_d2', []),
                         "clinical_details": {
                             "clinical_summary": top_feat['summary'] if top_feat else res['message'],
                             "molecular_logic": top_feat['meta']['molecular_logic'] if top_feat else "임상 데이터 분석 완료",
@@ -320,6 +331,7 @@ class HybridDUREngine:
         return {"interactions": interactions}
 
     def search_drugs(self, query: str):
+        """의약품 검색"""
         query = query.lower().strip().replace(" ", "")
         if not query: return []
         results = []
