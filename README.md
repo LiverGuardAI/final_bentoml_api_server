@@ -11,7 +11,13 @@ final_deployment/
 │   │   ├── task3_model.joblib
 │   │   ├── config.json
 │   │   ├── results_summary.json
-│   │   └── summary.json
+│   │   ├── summary.json
+│   │   ├── xgb_model_v5_optuna_cv.joblib  # [New] AI 화학구조 모델
+│   │   ├── medicine_master_v3.csv         # [New] 약물/성분 마스터 DB
+│   │   ├── dur_master_integrated_v2.csv   # [New] 국내 병용금기 규칙
+│   │   ├── embedding_map_v5_service.pkl   # [New] 화학 임베딩 벡터
+│   │   └── drugbank_slim_df_...csv        # [New] 글로벌 상호작용 DB
+│   ├── hybrid_dur_model.py    # [New] Hybrid DUR 엔진 (Core Logic)
 │   ├── register_models.py     # Model Store 등록
 │   ├── service.py             # BentoML 서비스
 │   └── requirements.txt
@@ -225,3 +231,60 @@ curl -X POST http://localhost:8000/api/ai/predict/all/ \
 | Lab result 사용 | ✅ Clinical 9개 |
 
 ---
+
+## 💊 Hybrid DUR Engine (V8.9.12 PRO)
+
+**LiverGuard V8.9.12 PRO**부터는 기존 AI 예측을 넘어선 **하이브리드 약물 상호작용 분석 엔진**이 탑재되었습니다.
+
+### 🌟 핵심 기능
+1.  **3단계 분석 로직**:
+    *   **1단계 (DUR Korea)**: KFDA(식약처) 고시 병용금기 데이터를 최우선 적용 (100% 신뢰성).
+    *   **2단계 (DrugBank Global)**: 전 세계적으로 보고된 약물 상호작용 규칙 적용.
+    *   **3단계 (AI Inference)**: 알려지지 않은 기전은 `XGBoost` + `Chemical Embedding` 모델이 약물 구조를 분석하여 예측.
+
+2.  **Zero Hallucination (환각 차단)**:
+    *   AI가 예측한 결과라도 `clinical_summary`와 `molecular_logic`이 실제 약물학적 기전과 일치하는지 **교차 검증(Integrity Check)** 후 제공합니다.
+    *   **ATC 코드 매핑**: 모든 약물은 WHO ATC 코드 체계에 따라 정밀하게 분류됩니다.
+
+3.  **임상 의사결정 지원 (CDSS)**:
+    *   단순 경고가 아닌 **구체적인 행동 지침(Action Plan)**과 **모니터링 지표**를 제공합니다.
+    *   예: "심전도(ECG) 모니터링 필수", "INR 수치 확인" 등.
+
+### 🔌 DDI API 엔드포인트
+
+| Method | Endpoint | 설명 |
+|--------|----------|------|
+| POST | `/predict_ddi` | 처방된 약물 리스트의 상호작용 분석 |
+
+**Request Example**:
+```json
+{
+  "prescriptions": ["아스피린", "와파린", "타이레놀"]
+}
+```
+
+**Response Example**:
+```json
+{
+  "interactions": [
+    {
+      "pair": ["아스피린", "와파린"],
+      "analysis": {
+        "final_status": "CRITICAL",
+        "final_message": "[병용금기] 출혈 위험 증가",
+        "source": "DUR_KOREA",
+        "ai_personalized": {
+          "clinical_details": {
+             "molecular_logic": "혈소판 응집 억제와 항응고 작용의 상승 효과...",
+             "recommendation": {
+               "action": "병용 금지 원칙",
+               "monitoring_param": "PT/INR"
+             }
+          }
+        }
+      }
+    }
+  ]
+}
+```
+
