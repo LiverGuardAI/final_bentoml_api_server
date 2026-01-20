@@ -222,12 +222,12 @@ class HybridDUREngine:
 
                 if dur_msg: 
                     status, msg, source = "CRITICAL", f"[DUR 금기] {dur_msg}", "DUR_KOREA"
-                    # 고정 문구 대신 AI가 찾은 '위험 성격'을 제목으로 사용
                     summary_title = risk_title if risk_title else "DUR 금기 위반"
                 elif db_rule_id is not None: 
+                    # ✅ DB 매칭 시, AI 제목(risk_title)보다 DB 제목(mapped_info[0])을 우선시함
                     mapped_info = DDI_KOREAN_MAP.get(db_rule_id, ["상호작용 주의", "병용 시 주의가 필요합니다."])
                     status, msg, source = "MONITORING", f"[DrugBank] {mapped_info[1]}", "DRUGBANK"
-                    summary_title = risk_title if risk_title else mapped_info[0]
+                    summary_title = mapped_info[0] 
                 elif max_prob >= 0.85 and int(pred_label) != 0:
                     status, msg, source = "MONITORING", f"[AI 예측] {ai_ddi_info[1]}", "AI_ENGINE"
                     summary_title = ai_ddi_info[0]
